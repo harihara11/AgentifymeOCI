@@ -1,0 +1,13 @@
+{
+  "channel": "finance-rag",
+  "messages": [
+    {
+      "user": "analyst",
+      "text": "Need guidance for RAG scenario."
+    },
+    {
+      "user": "specialist",
+      "text": "Use the mapped Finance source package."
+    }
+  ]
+}

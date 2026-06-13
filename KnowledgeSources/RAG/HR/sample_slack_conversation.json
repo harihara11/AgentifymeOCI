@@ -1,0 +1,13 @@
+{
+  "channel": "hr-rag",
+  "messages": [
+    {
+      "user": "analyst",
+      "text": "Need guidance for RAG scenario."
+    },
+    {
+      "user": "specialist",
+      "text": "Use the mapped HR source package."
+    }
+  ]
+}

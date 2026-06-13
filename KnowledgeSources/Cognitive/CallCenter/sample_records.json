@@ -1,0 +1,14 @@
+[
+  {
+    "recordId": "REC-001",
+    "personaGroup": "CallCenter",
+    "pattern": "Cognitive",
+    "status": "Open"
+  },
+  {
+    "recordId": "REC-002",
+    "personaGroup": "CallCenter",
+    "pattern": "Cognitive",
+    "status": "Closed"
+  }
+]

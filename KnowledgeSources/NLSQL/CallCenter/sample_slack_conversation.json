@@ -1,0 +1,13 @@
+{
+  "channel": "callcenter-nlsql",
+  "messages": [
+    {
+      "user": "analyst",
+      "text": "Need guidance for NLSQL scenario."
+    },
+    {
+      "user": "specialist",
+      "text": "Use the mapped CallCenter source package."
+    }
+  ]
+}

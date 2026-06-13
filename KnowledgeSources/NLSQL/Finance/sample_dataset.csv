@@ -1,0 +1,3 @@
+record_id,persona_group,pattern,status,priority
+1,Finance,NLSQL,Open,High
+2,Finance,NLSQL,In Review,Medium

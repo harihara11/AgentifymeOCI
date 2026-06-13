@@ -1,0 +1,14 @@
+[
+  {
+    "recordId": "REC-001",
+    "personaGroup": "HR",
+    "pattern": "NLSQL",
+    "status": "Open"
+  },
+  {
+    "recordId": "REC-002",
+    "personaGroup": "HR",
+    "pattern": "NLSQL",
+    "status": "Closed"
+  }
+]

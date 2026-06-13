@@ -1,0 +1,13 @@
+{
+  "channel": "hr-cognitive",
+  "messages": [
+    {
+      "user": "analyst",
+      "text": "Need guidance for Cognitive scenario."
+    },
+    {
+      "user": "specialist",
+      "text": "Use the mapped HR source package."
+    }
+  ]
+}

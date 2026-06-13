@@ -1,0 +1,14 @@
+[
+  {
+    "recordId": "REC-001",
+    "personaGroup": "Finance",
+    "pattern": "Cognitive",
+    "status": "Open"
+  },
+  {
+    "recordId": "REC-002",
+    "personaGroup": "Finance",
+    "pattern": "Cognitive",
+    "status": "Closed"
+  }
+]

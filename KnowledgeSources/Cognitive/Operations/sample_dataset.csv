@@ -1,0 +1,3 @@
+record_id,persona_group,pattern,status,priority
+1,Operations,Cognitive,Open,High
+2,Operations,Cognitive,In Review,Medium

@@ -1,0 +1,3 @@
+record_id,persona_group,pattern,status,priority
+1,CallCenter,Document AI,Open,High
+2,CallCenter,Document AI,In Review,Medium

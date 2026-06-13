@@ -1,0 +1,3 @@
+record_id,persona_group,pattern,status,priority
+1,CallCenter,Cognitive,Open,High
+2,CallCenter,Cognitive,In Review,Medium

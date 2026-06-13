@@ -1,0 +1,3 @@
+record_id,persona_group,pattern,status,priority
+1,HR,RAG,Open,High
+2,HR,RAG,In Review,Medium

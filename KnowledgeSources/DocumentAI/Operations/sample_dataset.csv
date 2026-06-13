@@ -1,0 +1,3 @@
+record_id,persona_group,pattern,status,priority
+1,Operations,Document AI,Open,High
+2,Operations,Document AI,In Review,Medium

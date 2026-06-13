@@ -1,0 +1,13 @@
+{
+  "channel": "operations-cognitive",
+  "messages": [
+    {
+      "user": "analyst",
+      "text": "Need guidance for Cognitive scenario."
+    },
+    {
+      "user": "specialist",
+      "text": "Use the mapped Operations source package."
+    }
+  ]
+}

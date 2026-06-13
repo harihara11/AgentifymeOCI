@@ -1,0 +1,13 @@
+{
+  "channel": "operations-nlsql",
+  "messages": [
+    {
+      "user": "analyst",
+      "text": "Need guidance for NLSQL scenario."
+    },
+    {
+      "user": "specialist",
+      "text": "Use the mapped Operations source package."
+    }
+  ]
+}

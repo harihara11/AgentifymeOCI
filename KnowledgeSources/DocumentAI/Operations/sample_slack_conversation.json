@@ -1,0 +1,13 @@
+{
+  "channel": "operations-documentai",
+  "messages": [
+    {
+      "user": "analyst",
+      "text": "Need guidance for Document AI scenario."
+    },
+    {
+      "user": "specialist",
+      "text": "Use the mapped Operations source package."
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "channel": "finance-cognitive",
+  "messages": [
+    {
+      "user": "analyst",
+      "text": "Need guidance for Cognitive scenario."
+    },
+    {
+      "user": "specialist",
+      "text": "Use the mapped Finance source package."
+    }
+  ]
+}
