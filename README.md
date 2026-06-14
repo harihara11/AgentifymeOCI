@@ -4,7 +4,7 @@ Static Oracle Redwood-style app for the workbook-driven OCI AI Factory journey.
 
 ## Open the App
 
-Open `AgentifyME_SaaS_AI_HCM_Redwood_Prototype_v3.html` in a browser.
+Open `AgentifyME_OCI_AI_Prototype_v3.html` in a browser.
 
 The page loads:
 

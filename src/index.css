@@ -124,11 +124,6 @@ button {
   background: #fff8f5;
 }
 
-.settingsButton span {
-  font-size: 28px;
-  line-height: 1;
-}
-
 .oracle {
   color: var(--oracle-red);
   font-weight: 900;
@@ -198,6 +193,10 @@ button {
 .step.skipped .stepNum {
   background: #ece6df;
   color: #7a7169;
+}
+
+.step.skipped {
+  cursor: default;
 }
 
 .stepNum {
@@ -487,16 +486,37 @@ textarea:disabled {
   width: 20px;
   height: 20px;
   border-radius: 5px;
+  flex: 0 0 auto;
   display: inline-grid;
   place-items: center;
   background: rgba(255, 255, 255, 0.22);
-  font-size: 11px;
-  font-weight: 900;
 }
 
 .secondary .iconBox,
 .ghost .iconBox {
   background: #eee8e1;
+}
+
+.buttonIcon,
+.iconBox {
+  color: currentColor;
+}
+
+.buttonIcon svg,
+.iconBox svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.settingsButton .buttonIcon svg {
+  width: 22px;
+  height: 22px;
 }
 
 .btnRow {
@@ -758,9 +778,10 @@ textarea:disabled {
 
 .sourceRow h4 {
   min-width: 0;
+  display: -webkit-box;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   font-size: 13px;
   line-height: 1.2;
 }
@@ -816,7 +837,7 @@ textarea:disabled {
 }
 
 .blueprintPage .blueprintArea {
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
 .canvas {
@@ -832,8 +853,9 @@ textarea:disabled {
 
 .blueprintPage .canvas {
   min-height: 0;
-  overflow: hidden;
+  overflow: auto;
   padding: 8px 10px;
+  scrollbar-gutter: stable;
 }
 
 .bpStack {
@@ -1164,7 +1186,24 @@ textarea:disabled {
 }
 
 .blueprintPage .runtime {
-  display: none;
+  display: grid;
+  gap: 7px;
+  padding: 9px 12px;
+}
+
+.blueprintPage .runtime .panelHead {
+  align-items: center;
+}
+
+.blueprintPage .trace {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.blueprintPage .traceRow {
+  min-height: 32px;
+  padding: 6px;
+  font-size: 11px;
 }
 
 .trace {
@@ -1446,6 +1485,7 @@ textarea:disabled {
 }
 
 .qrFrame {
+  position: relative;
   width: 260px;
   height: 260px;
   border: 1px solid var(--line);
@@ -1456,9 +1496,42 @@ textarea:disabled {
 }
 
 .qrFrame img {
+  position: relative;
+  z-index: 1;
   width: 240px;
   height: 240px;
   display: block;
+  background: #fff;
+}
+
+.qrFallback {
+  position: absolute;
+  inset: 10px;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  border-radius: 6px;
+  background:
+    linear-gradient(90deg, #231f1c 10px, transparent 10px) 0 0 / 32px 32px,
+    linear-gradient(#231f1c 10px, transparent 10px) 0 0 / 32px 32px,
+    #fff;
+  color: #332d29;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.qrLoaded .qrFallback {
+  display: none;
+}
+
+.qrFailed .qrFallback {
+  background: #fff8e8;
+  color: #684510;
+}
+
+.qrFailed .qrFallback::after {
+  content: "Use the direct image download button.";
 }
 
 .qrDetails {
@@ -1670,6 +1743,7 @@ tr:last-child td {
 }
 
 .fileItem {
+  min-width: 0;
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr);
   gap: 9px;
@@ -1678,6 +1752,28 @@ tr:last-child td {
   border: 1px solid #e5ded7;
   border-radius: 8px;
   background: #fff;
+}
+
+.fileItem > span:not(.fileType) {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.fileItem strong,
+.fileItem .small {
+  min-width: 0;
+  display: block;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.fileItem strong {
+  line-height: 1.2;
+}
+
+.fileItem .small {
+  line-height: 1.25;
 }
 
 .fileType {
@@ -1796,10 +1892,13 @@ tr:last-child td {
   .shell {
     height: auto;
     min-height: 100vh;
+    grid-template-rows: auto auto;
+    align-content: start;
   }
 
   .mainGrid {
     grid-template-columns: 1fr;
+    align-content: start;
   }
 
   .side {
@@ -1823,19 +1922,96 @@ tr:last-child td {
 }
 
 @media (max-width: 760px) {
-  .topbar,
   .pageHead,
   .panelHead {
     align-items: stretch;
     flex-direction: column;
   }
 
+  .topbar {
+    min-height: 0;
+    height: 76px;
+    padding: 0 14px;
+  }
+
   .brand {
     min-width: 0;
+    gap: 10px;
+  }
+
+  .mark {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+  }
+
+  .brand b {
+    font-size: 19px;
+  }
+
+  .brand span {
+    font-size: 11px;
+  }
+
+  .topActions {
+    gap: 10px;
+  }
+
+  .settingsButton {
+    width: 40px;
+    height: 40px;
+  }
+
+  .oracle {
+    display: none;
   }
 
   .content {
     padding: 14px;
+  }
+
+  .side {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-content: start;
+    padding: 12px 14px;
+    gap: 10px;
+  }
+
+  .side h2 {
+    align-self: center;
+    margin-bottom: 0;
+  }
+
+  .stepper {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(148px, 1fr);
+    grid-template-columns: none;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: thin;
+  }
+
+  .step {
+    min-height: 62px;
+    padding: 9px;
+  }
+
+  .sideFooter {
+    align-self: center;
+    margin-top: 0;
+    padding-top: 2px;
+  }
+
+  .resetButton {
+    min-height: 34px;
+    width: fit-content;
+    padding: 0 2px;
+    font-size: 13px;
+    text-align: left;
   }
 
   .journeyPanel {
@@ -1857,8 +2033,55 @@ tr:last-child td {
   .grid.four,
   .metrics,
   .previewGrid,
-  .sourcePreviewLayout,
-  .stepper {
+  .sourcePreviewLayout {
     grid-template-columns: 1fr;
+  }
+
+  .registerCard {
+    min-height: auto;
+    margin-top: 0;
+    padding: 22px;
+  }
+
+  .registerCard h1,
+  .blueprintPage h1 {
+    font-size: 30px;
+  }
+
+  .registerForm .input {
+    font-size: 16px;
+  }
+
+  .blueprintPage {
+    max-height: none;
+    overflow: visible;
+    padding: 16px;
+  }
+
+  .blueprintPage .workPane,
+  .blueprintPage .blueprintArea,
+  .blueprintPage .chatPanel {
+    height: auto;
+    min-height: 360px;
+  }
+
+  .blueprintPage .canvas {
+    min-height: 470px;
+    overflow: auto;
+  }
+
+  .blueprintPage .trace {
+    grid-template-columns: 1fr;
+  }
+
+  .qrLayout,
+  .settingsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .qrFrame {
+    width: min(260px, 100%);
+    height: auto;
+    aspect-ratio: 1;
   }
 }

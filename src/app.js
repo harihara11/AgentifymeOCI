@@ -266,6 +266,10 @@ function next() {
   }
   if (state.screen === "pattern") return go("blueprint");
   if (state.screen === "blueprint") return go("leaderboard");
+  if (state.screen === "leaderboard") {
+    resetExperience();
+    return render();
+  }
   return go("register");
 }
 
@@ -317,7 +321,7 @@ function renderTopbar() {
       </div>
       <div class="topActions">
         <button class="settingsButton" type="button" data-settings-open="true" aria-label="Settings" aria-haspopup="dialog" title="Settings">
-          <span aria-hidden="true">&#9881;</span>
+          ${uiIcon("settings")}
         </button>
         <div class="oracle">ORACLE</div>
       </div>
@@ -362,11 +366,12 @@ function renderStep(step, index) {
   const currentIndex = stepOrder.indexOf(state.screen);
   const skipped = step === "pattern" && state.experience === "Explore";
   const done = index < currentIndex || (skipped && canEnter("blueprint"));
-  const active = state.screen === step || (state.screen === "blueprint" && skipped);
+  const active = state.screen === step;
   const [title, meta] = stepLabels[step];
   const summary = stepSummary(step, skipped ? "Auto-selected for Explore" : meta);
+  const stepAttribute = skipped ? "" : `data-step="${step}"`;
   return `
-    <button class="step ${active ? "active" : ""} ${done ? "done" : ""} ${skipped ? "skipped" : ""}" data-step="${step}">
+    <button class="step ${active ? "active" : ""} ${done ? "done" : ""} ${skipped ? "skipped" : ""}" ${stepAttribute}>
       <span class="stepNum">${index + 1}</span>
       <span><span class="stepTitle">${esc(title)}</span><span class="stepMeta">${esc(summary)}</span></span>
     </button>
@@ -462,7 +467,7 @@ function renderExperienceCard(rule) {
   const meta = experienceCardMeta(rule.Experience);
   return `
     <button class="choice experienceChoice ${selected ? "selected" : ""}" data-experience="${esc(rule.Experience)}">
-      <span class="check">${selected ? "✓" : "✓"}</span>
+      <span class="check" aria-hidden="true">${selected ? "✓" : ""}</span>
       <span class="experienceTime">${esc(meta.time)}</span>
       <h3>${esc(rule.Experience)}</h3>
       <p>${esc(meta.description)}</p>
@@ -507,7 +512,7 @@ function renderPatternCard(pattern) {
   const selected = state.patternId === pattern.PatternID;
   return `
     <button class="choice ${selected ? "selected" : ""}" data-pattern="${esc(pattern.PatternID)}">
-      <span class="check">${selected ? "1" : ""}</span>
+      <span class="check" aria-hidden="true">${selected ? "✓" : ""}</span>
       <h3>${esc(pattern.PatternName)}</h3>
       <p>${esc(pattern.Description)}</p>
     </button>
@@ -524,8 +529,8 @@ function renderBlueprintScreen() {
           <h1>${esc(state.workerName || "Digital Worker")}</h1>
         </div>
         <div class="btnRow">
-          <button class="action secondary" data-download-qr><span class="iconBox">DL</span>Download Blueprint</button>
-          <button class="action primary" data-add-leader><span class="iconBox">LB</span>Add to Leaderboard</button>
+          <button class="action secondary" data-download-qr>${uiIcon("download", "iconBox")}<span>Download Blueprint</span></button>
+          <button class="action primary" data-add-leader>${uiIcon("award", "iconBox")}<span>Add to Leaderboard</span></button>
         </div>
       </div>
       <div class="threePane">
@@ -578,6 +583,19 @@ function redwoodEyeIcon() {
       <circle cx="12" cy="12" r="2.65"></circle>
     </svg>
   `;
+}
+
+function uiIcon(name, className = "buttonIcon") {
+  const icons = {
+    settings: `<path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"></path><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.04.04a2.06 2.06 0 0 1-2.91 2.91l-.04-.04A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .56V20a2 2 0 0 1-4 0v-.06a1.7 1.7 0 0 0-1-.56 1.7 1.7 0 0 0-1.88.34l-.04.04a2.06 2.06 0 0 1-2.91-2.91l.04-.04A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.56-1H4a2 2 0 0 1 0-4h.06a1.7 1.7 0 0 0 .56-1 1.7 1.7 0 0 0-.34-1.88l-.04-.04a2.06 2.06 0 0 1 2.91-2.91l.04.04A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.56V4a2 2 0 0 1 4 0v.06a1.7 1.7 0 0 0 1 .56 1.7 1.7 0 0 0 1.88-.34l.04-.04a2.06 2.06 0 0 1 2.91 2.91l-.04.04A1.7 1.7 0 0 0 19.4 9c.2.34.38.68.56 1H20a2 2 0 0 1 0 4h-.06a1.7 1.7 0 0 0-.56 1Z"></path>`,
+    download: `<path d="M12 3v11"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path>`,
+    award: `<circle cx="12" cy="8" r="5"></circle><path d="m8.5 12.5-1 7 4.5-2.5 4.5 2.5-1-7"></path>`,
+    close: `<path d="M6 6l12 12"></path><path d="M18 6 6 18"></path>`,
+    image: `<rect x="4" y="5" width="16" height="14" rx="2"></rect><circle cx="9" cy="10" r="1.5"></circle><path d="m8 17 3.5-4 2.5 3 1.5-2 2.5 3"></path>`,
+    upload: `<path d="M12 16V5"></path><path d="m7 10 5-5 5 5"></path><path d="M5 20h14"></path>`,
+    folder: `<path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5v-9Z"></path>`,
+  };
+  return `<span class="${esc(className)}" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false">${icons[name] || icons.download}</svg></span>`;
 }
 
 function renderBlueprintPane(blueprint) {
@@ -792,7 +810,7 @@ function renderLeaderboard() {
         </div>
         <div class="btnRow">
           <span class="pill green">Current score ${currentScore}</span>
-          <button class="action primary" data-add-leader><span class="iconBox">LB</span>Add Current Run</button>
+          <button class="action primary" data-add-leader>${uiIcon("award", "iconBox")}<span>Add Current Run</span></button>
         </div>
       </div>
       <section class="panel pad">
@@ -849,7 +867,7 @@ function renderModal() {
             <h2>${esc(source.KnowledgeSource)}</h2>
             <p>${esc(source.Description)}</p>
           </div>
-          <button class="action secondary" data-modal-close><span class="iconBox">X</span>Close</button>
+          <button class="action secondary" data-modal-close>${uiIcon("close", "iconBox")}<span>Close</span></button>
         </header>
         <div class="modalBody">
           <div class="sourcePreviewLayout">
@@ -881,17 +899,23 @@ function renderDownloadModal() {
             <h2>${esc(payload.digitalWorkerName || "Blueprint")}</h2>
             <p>Scan the QR code to open the blueprint image download, or download it directly from this screen.</p>
           </div>
-          <button class="action secondary" data-modal-close><span class="iconBox">X</span>Close</button>
+          <button class="action secondary" data-modal-close>${uiIcon("close", "iconBox")}<span>Close</span></button>
         </header>
         <div class="modalBody">
           <div class="qrLayout">
             <div class="qrFrame">
-              <img src="${esc(qrImageUrl(downloadUrl))}" alt="QR code for blueprint PNG download" />
+              <span class="qrFallback">Preparing QR code</span>
+              <img
+                src="${esc(qrImageUrl(downloadUrl))}"
+                alt="QR code for blueprint PNG download"
+                onload="this.closest('.qrFrame').classList.add('qrLoaded')"
+                onerror="this.closest('.qrFrame').classList.add('qrFailed')"
+              />
             </div>
             <div class="qrDetails">
               <h3>${esc(payload.pattern || patternById()?.PatternName || "Agent Pattern")}</h3>
               <p>${esc(payload.persona || personaById()?.PersonaName || "Selected persona")} - ${esc(payload.experience || state.experience)} - Score ${esc(payload.score || computeScore())}</p>
-              <button class="action primary" data-download="png"><span class="iconBox">PN</span>Download Image</button>
+              <button class="action primary" data-download="png">${uiIcon("image", "iconBox")}<span>Download Image</span></button>
             </div>
           </div>
         </div>
@@ -915,7 +939,7 @@ function renderSettingsModal() {
             <h2>Workbook and source controls</h2>
             <p>Load the OCI AI Factory workbook and detect local KnowledgeSources content.</p>
           </div>
-          <button class="action secondary" data-modal-close><span class="iconBox">X</span>Close</button>
+          <button class="action secondary" data-modal-close>${uiIcon("close", "iconBox")}<span>Close</span></button>
         </header>
         <div class="modalBody">
           <div class="settingsGrid">
@@ -929,14 +953,14 @@ function renderSettingsModal() {
                 <div class="metric"><b>${stats.responses}</b><span>Responses</span></div>
               </div>
               <div class="btnRow" style="margin-top: 14px">
-                <button class="action primary" data-workbook-upload-trigger><span class="iconBox">XL</span>Load Excel</button>
-                <button class="action secondary" data-content-upload-trigger><span class="iconBox">KS</span>Detect Sources</button>
+                <button class="action primary" data-workbook-upload-trigger>${uiIcon("upload", "iconBox")}<span>Load Excel</span></button>
+                <button class="action secondary" data-content-upload-trigger>${uiIcon("folder", "iconBox")}<span>Detect Sources</span></button>
               </div>
             </section>
             <section class="settingsBox">
               <h3>Runtime source repository</h3>
               <p>${stats.files} files are available to source preview dialogs. Select a local KnowledgeSources folder to detect uploaded files in this browser session.</p>
-              <div class="notice">Workbook upload accepts `.xlsx`, `.xls`, or exported JSON. The default bundle remains available until another workbook is loaded.</div>
+              <div class="notice">Workbook upload accepts .xlsx, .xls, or exported JSON. The default bundle remains available until another workbook is loaded.</div>
             </section>
           </div>
         </div>
