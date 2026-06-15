@@ -9,8 +9,8 @@ const state = {
   screen: "register",
   name: "Harry",
   personaId: "",
-  experience: "Explore",
-  experienceSelected: false,
+  experience: "Engineer",
+  experienceSelected: true,
   workerName: "",
   patternId: "",
   selectedKnowledgeIds: [],
@@ -28,12 +28,11 @@ const state = {
   leaderboard: readLeaderboard(),
 };
 
-const stepOrder = ["register", "persona", "experience", "pattern", "blueprint", "leaderboard"];
+const stepOrder = ["register", "persona", "pattern", "blueprint", "leaderboard"];
 const stepLabels = {
   register: ["Register", "Your Nick Name"],
-  persona: ["Persona", "Actual Role"],
-  experience: ["Experience", "Explore / Engineer"],
-  pattern: ["Agent Pattern", "Engineer only"],
+  persona: ["Persona", "Role + worker name"],
+  pattern: ["What your agent should do ?", "Select capability"],
   blueprint: ["Blueprint", "Build + test"],
   leaderboard: ["Complete", "Leaderboard + download"],
 };
@@ -147,10 +146,6 @@ function blueprintFor(personaId = state.personaId, patternId = state.patternId) 
   );
 }
 
-function experienceRule(name = state.experience) {
-  return sheet("06_Experience_Rules").find((row) => row.Experience === name) || null;
-}
-
 function availableSourcesFor(personaId = state.personaId, patternId = state.patternId) {
   const mapped = sheet("05_Persona_Pattern_KB_Map").filter(
     (row) => row.PersonaID === personaId && row.PatternID === patternId,
@@ -224,7 +219,8 @@ function ensureDefaults(resetKnowledge = false) {
   const persona = personaById();
   if (!persona) return;
   if (!state.workerName) state.workerName = suggestedWorkerNames()[0] || `${persona.PersonaName.replace(/\s+(Specialist|Agent)$/i, "")} Worker`;
-  if (state.experience === "Explore") state.patternId = persona.RecommendedPatternID || state.patternId;
+  state.experience = "Engineer";
+  state.experienceSelected = true;
   const context = `${state.personaId}|${state.patternId}|${state.experience}`;
   if (state.patternId && (resetKnowledge || state.knowledgeContext !== context || !state.selectedKnowledgeIds.length)) {
     state.selectedKnowledgeIds = defaultSourceIds();
@@ -267,16 +263,14 @@ function workbookStats() {
 function canEnter(screen) {
   if (screen === "register") return true;
   if (screen === "persona") return Boolean(state.name.trim());
-  if (screen === "experience") return canEnter("persona") && Boolean(state.personaId);
-  if (screen === "pattern") return canEnter("experience") && Boolean(state.workerName.trim()) && state.experience === "Engineer";
-  if (screen === "blueprint") return canEnter("experience") && Boolean(state.workerName.trim()) && Boolean(state.patternId);
+  if (screen === "pattern") return canEnter("persona") && Boolean(state.personaId) && Boolean(state.workerName.trim());
+  if (screen === "blueprint") return canEnter("pattern") && Boolean(state.patternId);
   if (screen === "leaderboard") return canEnter("blueprint");
   return false;
 }
 
 function go(screen) {
   ensureDefaults();
-  if (screen === "pattern" && state.experience === "Explore") screen = "blueprint";
   if (!canEnter(screen)) return;
   state.screen = screen;
   render();
@@ -284,12 +278,10 @@ function go(screen) {
 
 function next() {
   if (state.screen === "register") return go("persona");
-  if (state.screen === "persona") return go("experience");
-  if (state.screen === "experience") {
+  if (state.screen === "persona") {
     if (!state.workerName.trim()) return render();
-    state.experienceSelected = true;
     ensureDefaults(true);
-    return state.experience === "Engineer" ? go("pattern") : go("blueprint");
+    return go("pattern");
   }
   if (state.screen === "pattern") return go("blueprint");
   if (state.screen === "blueprint") return go("leaderboard");
@@ -302,16 +294,14 @@ function next() {
 
 function previous() {
   if (state.screen === "persona") return go("register");
-  if (state.screen === "experience") return go("persona");
-  if (state.screen === "pattern") return go("experience");
-  if (state.screen === "blueprint") return state.experience === "Engineer" ? go("pattern") : go("experience");
+  if (state.screen === "pattern") return go("persona");
+  if (state.screen === "blueprint") return go("pattern");
   if (state.screen === "leaderboard") return go("blueprint");
   return go("register");
 }
 
 function canMoveNext() {
-  if (state.screen === "persona") return canEnter("experience");
-  if (state.screen === "experience") return Boolean(state.workerName.trim());
+  if (state.screen === "persona") return canEnter("pattern");
   if (state.screen === "pattern") return canEnter("blueprint");
   return true;
 }
@@ -330,8 +320,8 @@ function render() {
   document.getElementById("app").innerHTML = `
     <div class="shell">
       ${renderTopbar()}
+      ${renderMetroJourney()}
       <div class="mainGrid ${state.screen === "blueprint" ? "blueprintMainGrid" : ""}">
-        ${renderSide()}
         <main class="content">${renderScreen()}</main>
       </div>
       ${renderModal()}
@@ -344,7 +334,7 @@ function renderTopbar() {
     <header class="topbar">
       <div class="brand">
         <div class="mark">AI</div>
-        <div><b>AgentifyME</b><span>Experience the Agent Creation</span></div>
+        <div><b>AgentifyME</b><span>Create your Agent</span></div>
       </div>
       <div class="topActions">
         <button class="settingsButton" type="button" data-settings-open="true" aria-label="Settings" aria-haspopup="dialog" title="Settings">
@@ -353,6 +343,30 @@ function renderTopbar() {
         <div class="oracle">ORACLE</div>
       </div>
     </header>
+  `;
+}
+
+function renderMetroJourney() {
+  const currentIndex = Math.max(stepOrder.indexOf(state.screen), 0);
+  const progress = stepOrder.length > 1 ? (currentIndex / (stepOrder.length - 1)) * 100 : 0;
+  return `
+    <nav class="metroJourney" aria-label="Guided Journey">
+      <div class="metroHead">
+        <strong>Guided Journey</strong>
+        <span>${esc(stepSummary(state.screen, stepLabels[state.screen]?.[1] || ""))}</span>
+      </div>
+      <div class="metroTrack" style="--metro-progress: ${progress}%">
+        <div class="metroLine" aria-hidden="true"><span></span></div>
+        <div class="metroStops">
+          ${stepOrder.map((step, index) => renderMetroStop(step, index)).join("")}
+        </div>
+      </div>
+      <div class="metroActions">
+        <input class="hiddenInput" id="workbookUpload" type="file" accept=".json,.xlsx,.xls" />
+        <input class="hiddenInput" id="contentUpload" type="file" multiple webkitdirectory />
+        <button class="resetButton metroReset" data-reset-experience>Reset</button>
+      </div>
+    </nav>
   `;
 }
 
@@ -366,21 +380,30 @@ function renderSide() {
       <div class="sideFooter">
         <input class="hiddenInput" id="workbookUpload" type="file" accept=".json,.xlsx,.xls" />
         <input class="hiddenInput" id="contentUpload" type="file" multiple webkitdirectory />
-        <button class="resetButton" data-reset-experience>Reset Experience</button>
+        <button class="resetButton" data-reset-experience>Reset</button>
       </div>
     </aside>
   `;
 }
 
+function renderMetroStop(step, index) {
+  const currentIndex = stepOrder.indexOf(state.screen);
+  const done = index < currentIndex;
+  const active = state.screen === step;
+  const [title, meta] = stepLabels[step];
+  const summary = stepSummary(step, meta);
+  return `
+    <button class="metroStop ${active ? "active" : ""} ${done ? "done" : ""}" data-step="${step}" title="${esc(title)} - ${esc(summary)}">
+      <span class="metroDot">${index + 1}</span>
+      <span class="metroText"><strong>${esc(title)}</strong><small>${esc(summary)}</small></span>
+    </button>
+  `;
+}
+
 function stepSummary(step, fallback) {
   if (step === "register") return state.screen === "register" ? fallback : state.name.trim() || fallback;
-  if (step === "persona") return personaById()?.PersonaName || fallback;
-  if (step === "experience") return state.experienceSelected ? [state.experience, state.workerName].filter(Boolean).join(" - ") : fallback;
-  if (step === "pattern") {
-    if (!state.experienceSelected) return fallback;
-    if (state.experience === "Explore" && patternById()) return `${patternById().PatternName} auto-selected`;
-    return patternById()?.PatternName || fallback;
-  }
+  if (step === "persona") return [personaById()?.PersonaName, state.workerName].filter(Boolean).join(" - ") || fallback;
+  if (step === "pattern") return patternById()?.PatternName || fallback;
   if (step === "blueprint") {
     if ((state.screen === "blueprint" || state.screen === "leaderboard") && state.workerName && patternById()) return `${state.workerName} - ${patternById().PatternName}`;
     return fallback;
@@ -391,14 +414,12 @@ function stepSummary(step, fallback) {
 
 function renderStep(step, index) {
   const currentIndex = stepOrder.indexOf(state.screen);
-  const skipped = step === "pattern" && state.experience === "Explore";
-  const done = index < currentIndex || (skipped && canEnter("blueprint"));
+  const done = index < currentIndex;
   const active = state.screen === step;
   const [title, meta] = stepLabels[step];
-  const summary = stepSummary(step, skipped ? "Auto-selected for Explore" : meta);
-  const stepAttribute = skipped ? "" : `data-step="${step}"`;
+  const summary = stepSummary(step, meta);
   return `
-    <button class="step ${active ? "active" : ""} ${done ? "done" : ""} ${skipped ? "skipped" : ""}" ${stepAttribute}>
+    <button class="step ${active ? "active" : ""} ${done ? "done" : ""}" data-step="${step}">
       <span class="stepNum">${index + 1}</span>
       <span><span class="stepTitle">${esc(title)}</span><span class="stepMeta">${esc(summary)}</span></span>
     </button>
@@ -407,7 +428,6 @@ function renderStep(step, index) {
 
 function renderScreen() {
   if (state.screen === "persona") return renderPersona();
-  if (state.screen === "experience") return renderExperience();
   if (state.screen === "pattern") return renderPattern();
   if (state.screen === "blueprint") return renderBlueprintScreen();
   if (state.screen === "leaderboard") return renderLeaderboard();
@@ -426,7 +446,7 @@ function renderRegister() {
             <input id="nameInput" class="input" value="${esc(state.name)}" placeholder="Enter your name" autocomplete="off" />
           </div>
           <div class="btnRow" style="margin-top: 14px">
-            <button class="action primary" data-route-next>Start experience</button>
+            <button class="action primary" data-route-next>Start</button>
           </div>
         </div>
       </section>
@@ -435,17 +455,29 @@ function renderRegister() {
 }
 
 function renderPersona() {
+  const suggestions = suggestedWorkerNames();
   return `
     <section class="page journeyPanel">
       <div class="pageHead">
         <div>
           <div class="eyebrow">Persona Selection</div>
-          <h1>Select a persona</h1>
+          <h1>Select a persona and name your digital worker</h1>
         </div>
       </div>
       <div class="grid three">
         ${personas().map((persona) => renderPersonaCard(persona)).join("")}
       </div>
+      ${state.personaId ? `
+        <section class="workerNamePanel">
+          <div class="field">
+            <label class="label" for="workerName">Digital worker name</label>
+            <input id="workerName" class="input" value="${esc(state.workerName)}" placeholder="Name your digital worker" autocomplete="off" />
+          </div>
+          <div class="suggestionRow compactSuggestions">
+            ${suggestions.map((name) => `<button class="nameSuggestion" data-name-suggestion="${esc(name)}">${esc(name)}</button>`).join("")}
+          </div>
+        </section>
+      ` : ""}
       ${renderRouteActions("Next", "&rarr;")}
     </section>
   `;
@@ -461,70 +493,13 @@ function renderPersonaCard(persona) {
   `;
 }
 
-function renderExperience() {
-  const rules = sheet("06_Experience_Rules");
-  const suggestions = suggestedWorkerNames();
-  return `
-    <section class="page journeyPanel">
-      <div class="pageHead">
-        <div>
-          <div class="eyebrow">Experience Path + Digital Worker</div>
-          <h1>Pick the experience and name your digital worker</h1>
-        </div>
-      </div>
-      <div class="grid two">
-        ${rules.map((rule) => renderExperienceCard(rule)).join("")}
-      </div>
-      <section class="panel pad" style="margin-top: 14px">
-        <div class="field">
-          <label class="label" for="workerName">Digital worker name</label>
-          <input id="workerName" class="input" value="${esc(state.workerName)}" placeholder="Name your digital worker" autocomplete="off" />
-        </div>
-        <div class="suggestionRow">
-          ${suggestions.map((name) => `<button class="nameSuggestion" data-name-suggestion="${esc(name)}">${esc(name)}</button>`).join("")}
-        </div>
-      </section>
-      ${renderRouteActions("Next", "&rarr;")}
-    </section>
-  `;
-}
-
-function renderExperienceCard(rule) {
-  const selected = state.experience === rule.Experience;
-  const meta = experienceCardMeta(rule.Experience);
-  return `
-    <button class="choice experienceChoice ${selected ? "selected" : ""}" data-experience="${esc(rule.Experience)}">
-      <span class="check" aria-hidden="true">${selected ? "✓" : ""}</span>
-      <span class="experienceTime">${esc(meta.time)}</span>
-      <h3>${esc(rule.Experience)}</h3>
-      <p>${esc(meta.description)}</p>
-      <span class="audiencePill">${esc(meta.audience)}</span>
-    </button>
-  `;
-}
-
-function experienceCardMeta(experience) {
-  if (experience === "Engineer") {
-    return {
-      time: "~5 min",
-      description: "Deeper build with technical toggles",
-      audience: "HRIT, CIO, architects, technical attendees",
-    };
-  }
-  return {
-    time: "2-3 min",
-    description: "Guided business build with prefilled options",
-    audience: "Business users and execs",
-  };
-}
-
 function renderPattern() {
   return `
     <section class="page journeyPanel">
       <div class="pageHead">
         <div>
-          <div class="eyebrow">Agent Pattern Selection</div>
-          <h1>Select any agent pattern</h1>
+          <div class="eyebrow">Agent capability</div>
+          <h1>What your agent should do ?</h1>
         </div>
       </div>
       <div class="grid four">
@@ -570,7 +545,7 @@ function renderBlueprintScreen() {
 }
 
 function renderKnowledgePane() {
-  const editable = state.experience === "Engineer";
+  const editable = true;
   const sources = availableSourcesFor();
   const selected = new Set(state.selectedKnowledgeIds);
   return `
@@ -582,7 +557,7 @@ function renderKnowledgePane() {
           </div>
         </div>
         <div class="sourceList">
-          ${sources.map((source) => renderSourceRow(source, selected.has(source.KnowledgeID), editable)).join("") || `<div class="empty">No workbook sources mapped for this persona and pattern.</div>`}
+          ${sources.map((source) => renderSourceRow(source, selected.has(source.KnowledgeID), editable)).join("") || `<div class="empty">No workbook sources mapped for this persona and capability.</div>`}
         </div>
       </div>
     </section>
@@ -633,7 +608,7 @@ function renderBlueprintPane(blueprint) {
       <div class="paneBody" style="border-bottom: 1px solid var(--line)">
         <div class="panelHead">
           <div>
-            <h3>${esc(patternById()?.PatternName || "Agent Pattern")}</h3>
+            <h3>${esc(patternById()?.PatternName || "Selected capability")}</h3>
             <p>${esc(blueprint?.BlueprintTheme || "Workbook mapped architecture")}</p>
           </div>
           <div class="canvasActions">
@@ -661,7 +636,7 @@ function renderSourceRailButton() {
 }
 
 function renderKnowledgeSourceRail() {
-  const editable = state.experience === "Engineer";
+  const editable = true;
   const sources = availableSourcesFor();
   const selected = new Set(state.selectedKnowledgeIds);
   return `
@@ -676,7 +651,7 @@ function renderKnowledgeSourceRail() {
             <button class="sourceIconButton" type="button" data-source-rail-toggle aria-label="Hide knowledge sources">${uiIcon("close", "traceCloseIcon")}</button>
           </div>
           <div class="sourceList compactSourceList">
-            ${sources.map((source) => renderSourceRow(source, selected.has(source.KnowledgeID), editable)).join("") || `<div class="empty">No workbook sources mapped for this persona and pattern.</div>`}
+            ${sources.map((source) => renderSourceRow(source, selected.has(source.KnowledgeID), editable)).join("") || `<div class="empty">No workbook sources mapped for this persona and capability.</div>`}
           </div>
         </div>
       ` : ""}
@@ -758,6 +733,7 @@ function renderWorkerBranch(node, stage) {
     <div class="subAgentCard ${esc(status.cardClass)}" style="--agent-progress: ${status.progress}%">
       <div class="subAgentTop">
         <span class="agentAvatar">${uiIcon("bot", "agentIcon")}</span>
+        <span class="oracleAgentMark" aria-label="Oracle agent">${oracleAgentLogo()}</span>
         <span class="agentStatus ${esc(status.className)}">${esc(status.label)}</span>
       </div>
       <strong>${esc(node.label)} Agent</strong>
@@ -768,6 +744,15 @@ function renderWorkerBranch(node, stage) {
       <div class="agentProgressTrack"><span></span></div>
       <div class="agentPhase">${esc(status.phase)}</div>
     </div>
+  `;
+}
+
+function oracleAgentLogo() {
+  return `
+    <svg viewBox="0 0 92 18" role="img" focusable="false">
+      <rect x="1" y="1" width="90" height="16" rx="8"></rect>
+      <text x="46" y="12.5" text-anchor="middle">ORACLE</text>
+    </svg>
   `;
 }
 
@@ -783,7 +768,7 @@ function renderAgentWorkerSwarm(nodes, stage) {
         <b>${nodes.length || 0} agents</b>
       </div>
       <div class="subAgentGrid">
-        ${nodes.map((node, index) => renderWorkerBranch({ ...node, __agentIndex: index, __agentTotal: nodes.length }, stage)).join("") || `<div class="empty miniEmpty">No worker agents mapped for this pattern</div>`}
+        ${nodes.map((node, index) => renderWorkerBranch({ ...node, __agentIndex: index, __agentTotal: nodes.length }, stage)).join("") || `<div class="empty miniEmpty">No worker agents mapped for this capability</div>`}
       </div>
     </section>
   `;
@@ -905,18 +890,19 @@ function renderRuntime() {
 function renderChatPane() {
   const qs = questionsFor();
   const hasRun = Boolean(state.run.question);
+  const chatbotName = state.workerName.trim() || "Digital Worker";
   return `
     <aside class="panel chatPanel redwoodChat">
       <header class="chatHeader">
-        <span class="chatHeaderIcon">AI</span>
-        <strong>Redwood Assistant</strong>
+        <span class="chatHeaderIcon">${esc(shortCode(chatbotName))}</span>
+        <strong>${esc(chatbotName)}</strong>
       </header>
       <div class="chatThread">
         <div class="chatMessage agentMessage">
-          <span class="chatAvatar">AI</span>
+          <span class="chatAvatar">${esc(shortCode(chatbotName))}</span>
           <div class="messageStack">
-            <div class="bubble agent">Hello. I am ready to test this blueprint.</div>
-            <span class="chatTime">Blueprint test</span>
+            <div class="bubble agent">Hello. I am ${esc(chatbotName)}. I am ready to test this blueprint.</div>
+            <span class="chatTime">${esc(chatbotName)} test</span>
           </div>
         </div>
         ${renderMessages()}
@@ -925,16 +911,12 @@ function renderChatPane() {
           ${qs.map((q) => `<button class="prompt" data-run-question="${esc(q.QnAID)}"><span>${esc(q.Question)}</span><b aria-hidden="true">&rsaquo;</b></button>`).join("") || `<div class="empty">No questions mapped for this scenario.</div>`}
         </div>
       </div>
-      ${state.experience === "Engineer" ? `
-        <div class="chatComposerBar">
-          <textarea id="customQuestion" class="chatInput" placeholder="Type your message..." rows="1">${esc(state.customQuestion)}</textarea>
-          <button class="sendButton" data-run-custom aria-label="Run custom question">
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3.5 20.5 21 12 3.5 3.5 6.25 10.9 14 12l-7.75 1.1-2.75 7.4Z"></path></svg>
-          </button>
-        </div>
-      ` : `
-        <div class="chatFooter">Powered by <b>Redwood</b></div>
-      `}
+      <div class="chatComposerBar">
+        <textarea id="customQuestion" class="chatInput" placeholder="Type your message..." rows="1">${esc(state.customQuestion)}</textarea>
+        <button class="sendButton" data-run-custom aria-label="Run custom question">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3.5 20.5 21 12 3.5 3.5 6.25 10.9 14 12l-7.75 1.1-2.75 7.4Z"></path></svg>
+        </button>
+      </div>
     </aside>
   `;
 }
@@ -966,7 +948,7 @@ function renderReasoning() {
       <h4>Reasoning Flow</h4>
       <p class="small">Scenario: ${esc(scenario?.ScenarioTitle || "Workbook scenario")}</p>
       <p class="small">Sources: ${esc(sourceNames || "No sources selected")}</p>
-      <p class="small">Pattern: ${esc(patternById()?.PatternName)}. Experience: ${esc(state.experience)}.</p>
+      <p class="small">Capability: ${esc(patternById()?.PatternName)}.</p>
     </div>
   `;
 }
@@ -1002,7 +984,7 @@ function renderLeaderboardTable() {
       <table>
         <thead>
           <tr>
-            <th>User</th><th>Persona</th><th>Experience</th><th>Pattern</th><th>Blueprint Name</th><th>Score</th><th>Downloads</th>
+            <th>User</th><th>Persona</th><th>Capability</th><th>Blueprint Name</th><th>Score</th><th>Downloads</th>
           </tr>
         </thead>
         <tbody>
@@ -1010,7 +992,6 @@ function renderLeaderboardTable() {
             <tr>
               <td>${esc(row.user)}</td>
               <td>${esc(row.persona)}</td>
-              <td>${esc(row.experience)}</td>
               <td>${esc(row.pattern)}</td>
               <td>${esc(row.blueprintName)}</td>
               <td><span class="score">${row.score}</span></td>
@@ -1026,6 +1007,7 @@ function renderLeaderboardTable() {
 function renderModal() {
   if (state.settingsOpen) return renderSettingsModal();
   if (state.downloadModalOpen) return renderDownloadModal();
+  if (state.docViewerSourceId) return renderDocumentViewerModal();
   if (!state.modalSourceId) return "";
   const source = sourceById(state.modalSourceId);
   if (!source) return "";
@@ -1050,7 +1032,6 @@ function renderModal() {
           </div>
         </div>
       </section>
-      ${state.docViewerSourceId ? renderDocumentViewerModal() : ""}
     </div>
   `;
 }
@@ -1081,8 +1062,8 @@ function renderDownloadModal() {
               />
             </div>
             <div class="qrDetails">
-              <h3>${esc(payload.pattern || patternById()?.PatternName || "Agent Pattern")}</h3>
-              <p>${esc(payload.persona || personaById()?.PersonaName || "Selected persona")} - ${esc(payload.experience || state.experience)} - Score ${esc(payload.score || computeScore())}</p>
+              <h3>${esc(payload.pattern || patternById()?.PatternName || "Selected capability")}</h3>
+              <p>${esc(payload.persona || personaById()?.PersonaName || "Selected persona")} - Score ${esc(payload.score || computeScore())}</p>
               <button class="action primary" data-download="png">${uiIcon("image", "iconBox")}<span>Download Image</span></button>
             </div>
           </div>
@@ -1116,7 +1097,7 @@ function renderSettingsModal() {
               <p>${esc(WORKBOOK.generatedFrom || "Workbook data bundle")}</p>
               <div class="settingsStats">
                 <div class="metric"><b>${stats.personas}</b><span>Personas</span></div>
-                <div class="metric"><b>${stats.patterns}</b><span>Patterns</span></div>
+                <div class="metric"><b>${stats.patterns}</b><span>Capabilities</span></div>
                 <div class="metric"><b>${stats.sources}</b><span>Sources</span></div>
                 <div class="metric"><b>${stats.responses}</b><span>Responses</span></div>
               </div>
@@ -1170,7 +1151,7 @@ function renderDocumentPreview(source, files) {
         <p>${esc(source.Description || "Workbook mapped source content")}</p>
         <ul>
           <li>Source category: ${esc(source.Channel || "Document")}</li>
-          <li>Used by ${esc(patternById()?.PatternName || "selected pattern")} blueprint testing</li>
+          <li>Used by ${esc(patternById()?.PatternName || "selected capability")} blueprint testing</li>
           <li>Scoped to ${esc(personaById()?.PersonaName || "selected persona")}</li>
         </ul>
       </div>
@@ -1188,7 +1169,7 @@ function renderDocumentViewerModal() {
   if (!source) return "";
   const file = primaryDocumentFile(filesForSource(source));
   const persona = personaById()?.PersonaName || "Selected Persona";
-  const pattern = patternById()?.PatternName || "Agent Pattern";
+  const pattern = patternById()?.PatternName || "Selected capability";
   const group = personaGroup();
   const generated = new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
   const sections = documentViewerSections(source, file);
@@ -1229,7 +1210,7 @@ function renderDocumentViewerModal() {
                 <p>${esc(source.Description || "Source content used by the selected blueprint to answer grounded questions.")}</p>
               </section>
               <div class="docInfoGrid">
-                <div><span>Pattern</span><strong>${esc(pattern)}</strong></div>
+                <div><span>Capability</span><strong>${esc(pattern)}</strong></div>
                 <div><span>Persona</span><strong>${esc(persona)}</strong></div>
                 <div><span>Generated</span><strong>${esc(generated)}</strong></div>
               </div>
@@ -1290,7 +1271,7 @@ function documentViewerSections(source, file) {
     {
       title: "Source Overview",
       body: `${sourceName} provides source evidence for the current AI Factory blueprint. The assistant uses it to ground answers and execution traces.`,
-      points: [`Pattern: ${patternById()?.PatternName || "selected pattern"}`, `Persona: ${personaById()?.PersonaName || "selected persona"}`, `Source type: ${source.SourceType || "Document"}`],
+        points: [`Capability: ${patternById()?.PatternName || "selected capability"}`, `Persona: ${personaById()?.PersonaName || "selected persona"}`, `Source type: ${source.SourceType || "Document"}`],
     },
     {
       title: "Usage in Blueprint",
@@ -1521,7 +1502,7 @@ function customResponse(question) {
     `Custom question routed through ${scenario?.ScenarioTitle || "the selected workbook scenario"}.`,
     `Question: ${question}`,
     `Selected sources: ${sources || "No knowledge sources selected"}.`,
-    firstResponse ? `Nearest workbook response pattern: ${firstResponse}` : "No nearest workbook response pattern is available.",
+    firstResponse ? `Nearest workbook response style: ${firstResponse}` : "No nearest workbook response style is available.",
   ].join("\n\n");
 }
 
@@ -1532,7 +1513,7 @@ function computeScore() {
   const selected = selectedSources().length;
   const questions = questionsFor().length;
   const values = {
-    "Blueprint completeness": state.personaId && state.experience && state.patternId && state.workerName ? 1 : 0,
+    "Blueprint completeness": state.personaId && state.patternId && state.workerName ? 1 : 0,
     "Knowledge source coverage": Math.min(selected / available, 1),
     "Question coverage": Math.min(questions / 2, 1),
     "Execution readiness": state.run.response ? 1 : 0.75,
@@ -1554,10 +1535,10 @@ function blueprintPayload(rowPayload = null) {
     generatedAt: new Date().toISOString(),
     user: state.name,
     persona: persona?.PersonaName || "",
-    experience: state.experience,
+    experience: "Engineer",
     pattern: pattern?.PatternName || "",
     digitalWorkerName: state.workerName,
-    blueprintName: pattern?.PatternName || blueprint?.BlueprintType || "Agent Pattern",
+    blueprintName: pattern?.PatternName || blueprint?.BlueprintType || "Selected capability",
     workbookBlueprintType: blueprint?.BlueprintType || "",
     blueprintTheme: blueprint?.BlueprintTheme || "",
     executionStyle: blueprint?.ExecutionStyle || "",
@@ -1666,8 +1647,7 @@ function makePdf(data) {
     "AgentifyME OCI AI Factory Blueprint",
     `User: ${data.user}`,
     `Persona: ${data.persona}`,
-    `Experience: ${data.experience}`,
-    `Pattern: ${data.pattern}`,
+    `Capability: ${data.pattern}`,
     `Blueprint: ${data.blueprintName}`,
     `Score: ${data.score}`,
     `Sources: ${data.knowledgeSources.map((source) => source.KnowledgeSource).join(", ")}`,
@@ -1725,7 +1705,7 @@ function downloadPng(data, fileName) {
   ctx.font = "bold 26px Arial";
   ctx.fillText(data.blueprintName, 40, 120);
   ctx.font = "16px Arial";
-  ctx.fillText(`${data.persona} | ${data.experience} | ${data.pattern} | Score ${data.score}`, 40, 150);
+  ctx.fillText(`${data.persona} | ${data.pattern} | Score ${data.score}`, 40, 150);
   let y = 210;
   data.nodes.forEach((node, index) => {
     ctx.fillStyle = "#ffffff";
@@ -1836,7 +1816,8 @@ async function handleWorkbookUpload(file) {
 function resetAfterWorkbook() {
   state.personaId = "";
   state.patternId = "";
-  state.experienceSelected = false;
+  state.experience = "Engineer";
+  state.experienceSelected = true;
   state.selectedKnowledgeIds = [];
   state.knowledgeContext = "";
   state.modalSourceId = "";
@@ -1912,20 +1893,7 @@ document.addEventListener("click", (event) => {
   if (target.dataset.routeNext !== undefined) return next();
   if (target.dataset.persona) {
     state.personaId = target.dataset.persona;
-    state.experience = "Explore";
-    state.experienceSelected = false;
-    state.patternId = "";
-    state.selectedKnowledgeIds = [];
-    state.knowledgeContext = "";
-    state.run = emptyRun();
-    state.traceOpen = false;
-    state.sourceRailOpen = false;
-    state.workerName = "";
-    ensureDefaults(true);
-    return render();
-  }
-  if (target.dataset.experience) {
-    state.experience = target.dataset.experience;
+    state.experience = "Engineer";
     state.experienceSelected = true;
     state.patternId = "";
     state.selectedKnowledgeIds = [];
@@ -1933,6 +1901,7 @@ document.addEventListener("click", (event) => {
     state.run = emptyRun();
     state.traceOpen = false;
     state.sourceRailOpen = false;
+    state.workerName = "";
     ensureDefaults(true);
     return render();
   }
@@ -1958,10 +1927,11 @@ document.addEventListener("click", (event) => {
     return render();
   }
   if (target.dataset.sourceView) {
-    state.modalSourceId = target.dataset.sourceView;
-    state.docViewerSourceId = "";
+    state.docViewerSourceId = target.dataset.sourceView;
+    state.modalSourceId = "";
     state.downloadModalOpen = false;
     state.downloadPayload = null;
+    state.settingsOpen = false;
     return render();
   }
   if (target.dataset.docOpen) {
@@ -1983,8 +1953,8 @@ function resetExperience() {
   state.screen = "register";
   state.name = "Harry";
   state.personaId = "";
-  state.experience = "Explore";
-  state.experienceSelected = false;
+  state.experience = "Engineer";
+  state.experienceSelected = true;
   state.workerName = "";
   state.patternId = "";
   state.selectedKnowledgeIds = [];

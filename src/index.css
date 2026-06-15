@@ -51,7 +51,7 @@ button {
 
 .shell {
   display: grid;
-  grid-template-rows: 76px minmax(0, 1fr);
+  grid-template-rows: 60px auto minmax(0, 1fr);
   height: 100vh;
 }
 
@@ -59,8 +59,8 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 0 22px;
+  gap: 14px;
+  padding: 0 18px;
   background: #fff;
   border-bottom: 1px solid var(--line);
 }
@@ -68,14 +68,14 @@ button {
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   min-width: 260px;
 }
 
 .mark {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   display: grid;
   place-items: center;
   background: var(--oracle-red);
@@ -90,25 +90,25 @@ button {
 }
 
 .brand b {
-  font-size: 22px;
+  font-size: 19px;
   line-height: 1.1;
 }
 
 .brand span {
-  margin-top: 2px;
-  font-size: 12px;
+  margin-top: 1px;
+  font-size: 11px;
   color: var(--muted);
 }
 
 .topActions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 .settingsButton {
-  width: 48px;
-  height: 48px;
+  width: 38px;
+  height: 38px;
   border: 1px solid var(--line);
   border-radius: 50%;
   display: grid;
@@ -128,17 +128,179 @@ button {
   color: var(--oracle-red);
   font-weight: 900;
   letter-spacing: 0.16em;
-  font-size: 21px;
+  font-size: 19px;
 }
 
 .mainGrid {
   min-height: 0;
   display: grid;
-  grid-template-columns: 288px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .blueprintMainGrid {
-  grid-template-columns: 84px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.metroJourney {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(140px, 190px) minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 7px 18px 8px;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(28, 24, 20, 0.04);
+}
+
+.metroHead strong,
+.metroHead span {
+  display: block;
+}
+
+.metroHead strong {
+  color: var(--oracle-red);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.metroHead span {
+  max-width: 190px;
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metroTrack {
+  --metro-progress: 0%;
+  min-width: 0;
+  position: relative;
+  padding: 2px 0 0;
+}
+
+.metroLine {
+  position: absolute;
+  top: 14px;
+  left: 24px;
+  right: 24px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8e2dc;
+}
+
+.metroLine span {
+  width: var(--metro-progress);
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--green), #78a86b);
+  transition: width 0.18s ease;
+}
+
+.metroStops {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.metroStop {
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 0;
+  color: #625c56;
+  background: transparent;
+  text-align: center;
+  cursor: pointer;
+}
+
+.metroStop.skipped {
+  cursor: default;
+}
+
+.metroDot {
+  width: 28px;
+  height: 28px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: #6d665f;
+  background: #e8e2dc;
+  box-shadow: 0 0 0 1px var(--line);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.metroStop.done .metroDot {
+  color: #fff;
+  background: var(--green);
+  box-shadow: 0 0 0 1px rgba(46, 125, 50, 0.45);
+}
+
+.metroStop.active .metroDot {
+  color: #fff;
+  background: var(--oracle-red);
+  box-shadow: 0 0 0 3px rgba(199, 70, 52, 0.14);
+}
+
+.metroStop.skipped .metroDot {
+  color: #756c64;
+  background: #eee8e1;
+}
+
+.metroText {
+  min-width: 0;
+  display: block;
+  width: 100%;
+}
+
+.metroText strong,
+.metroText small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metroText strong {
+  color: #2e2925;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.metroText small {
+  margin-top: 1px;
+  color: #756e67;
+  font-size: 10px;
+}
+
+.metroStop.active .metroText strong {
+  color: var(--oracle-red);
+}
+
+.metroActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.metroReset {
+  min-height: 32px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  background: #fff;
+  font-size: 13px;
 }
 
 .side {
@@ -278,12 +440,12 @@ button {
 .content {
   min-height: 0;
   overflow: auto;
-  padding: 28px;
+  padding: 18px 26px 20px;
   background: linear-gradient(180deg, #f8f6f3 0%, #f3f0ec 100%);
 }
 
 .blueprintMainGrid .content {
-  padding: 14px;
+  padding: 10px;
 }
 
 .page {
@@ -292,7 +454,7 @@ button {
 }
 
 .journeyPanel {
-  padding: 28px;
+  padding: 22px 28px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
@@ -301,12 +463,13 @@ button {
 
 .blueprintPage {
   max-width: none;
-  max-height: calc(100vh - 104px);
+  height: calc(100vh - 154px);
+  max-height: calc(100vh - 154px);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 10px;
+  gap: 8px;
   overflow: hidden;
-  padding: 16px;
+  padding: 10px;
 }
 
 .blueprintPage .pageHead {
@@ -315,7 +478,7 @@ button {
 }
 
 .blueprintPage h1 {
-  font-size: 26px;
+  font-size: 22px;
 }
 
 .blueprintPage .routeActions {
@@ -325,30 +488,30 @@ button {
 }
 
 .blueprintPage .action {
-  min-height: 36px;
-  padding: 8px 11px;
+  min-height: 34px;
+  padding: 7px 10px;
 }
 
 .blueprintWorkspace {
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 332px;
-  gap: 12px;
+  gap: 10px;
   align-items: stretch;
 }
 
 .registerCard {
   max-width: none;
-  min-height: 310px;
+  min-height: 270px;
   margin: 10px 0 0;
-  padding: 30px;
+  padding: 26px;
 }
 
 .registerCard h1 {
   max-width: 980px;
   font-size: 34px;
   line-height: 1.1;
-  margin-bottom: 28px;
+  margin-bottom: 22px;
 }
 
 .registerForm {
@@ -367,7 +530,7 @@ button {
   justify-content: space-between;
   gap: 18px;
   align-items: flex-start;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .eyebrow {
@@ -593,8 +756,8 @@ textarea:disabled {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  margin-top: 24px;
-  padding-top: 18px;
+  margin-top: 16px;
+  padding-top: 12px;
 }
 
 .field {
@@ -607,6 +770,18 @@ textarea:disabled {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 12px;
+}
+
+.workerNamePanel {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffdfb;
+}
+
+.compactSuggestions {
+  margin-top: 10px;
 }
 
 .nameSuggestion {
@@ -659,11 +834,11 @@ textarea:disabled {
 
 .choice {
   position: relative;
-  min-height: 116px;
+  min-height: 104px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
-  padding: 22px 52px 22px 22px;
+  padding: 18px 48px 18px 18px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -675,14 +850,14 @@ textarea:disabled {
 
 .choice h3 {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1.14;
 }
 
 .choice p {
-  margin-top: 8px;
+  margin-top: 6px;
   color: #5f5853;
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1.35;
 }
 
@@ -818,7 +993,22 @@ textarea:disabled {
 }
 
 .blueprintPage .paneBody {
-  padding: 12px;
+  padding: 8px 10px;
+}
+
+.blueprintPage .panelHead {
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.blueprintPage .panelHead h3 {
+  font-size: 18px;
+}
+
+.blueprintPage .panelHead p {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.25;
 }
 
 .sourceList {
@@ -916,9 +1106,9 @@ textarea:disabled {
 
 .blueprintPage .canvas {
   min-height: 0;
-  overflow: auto;
-  padding: 10px 14px 46px;
-  scrollbar-gutter: stable;
+  overflow: hidden;
+  display: grid;
+  padding: 8px 12px 38px;
 }
 
 .canvasActions {
@@ -1033,8 +1223,20 @@ textarea:disabled {
   display: grid;
   align-content: start;
   justify-items: center;
-  gap: 3px;
+  gap: 0;
   padding-top: 2px;
+}
+
+.blueprintPage .branchFlow {
+  min-height: 100%;
+  grid-template-rows:
+    auto 22px
+    auto 22px
+    minmax(64px, auto) 22px
+    minmax(158px, auto) 22px
+    auto;
+  align-content: space-evenly;
+  padding-top: 0;
 }
 
 .flowNode {
@@ -1073,11 +1275,13 @@ textarea:disabled {
 
 .sourceConstellation {
   width: min(100%, 700px);
+  min-height: 62px;
   position: relative;
   z-index: 2;
   display: grid;
-  gap: 5px;
-  padding: 7px 8px;
+  gap: 4px;
+  align-content: center;
+  padding: 7px 10px;
   border: 1px dashed rgba(126, 161, 116, 0.46);
   border-radius: 8px;
   background: rgba(250, 252, 248, 0.72);
@@ -1117,8 +1321,9 @@ textarea:disabled {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 5px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 180px));
+  justify-content: center;
+  gap: 4px;
 }
 
 .branchGrid::before,
@@ -1169,9 +1374,9 @@ textarea:disabled {
 }
 
 .sourceConstellation .branchCard {
-  min-height: 34px;
-  grid-template-columns: 26px minmax(0, 1fr);
-  padding: 5px 6px;
+  min-height: 30px;
+  grid-template-columns: 24px minmax(0, 1fr);
+  padding: 4px 6px;
 }
 
 .branchCard strong,
@@ -1209,11 +1414,12 @@ textarea:disabled {
 
 .agentSwarm {
   width: min(100%, 820px);
+  min-height: 150px;
   position: relative;
   z-index: 2;
   display: grid;
-  gap: 6px;
-  padding: 8px;
+  gap: 9px;
+  padding: 11px;
   border: 1px solid rgba(185, 205, 181, 0.72);
   border-radius: 8px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 247, 0.94));
@@ -1255,7 +1461,7 @@ textarea:disabled {
 
 .agentSwarmHead strong {
   margin-top: 2px;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .agentSwarmHead b {
@@ -1272,7 +1478,7 @@ textarea:disabled {
   z-index: 1;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 7px;
+  gap: 8px;
 }
 
 .agentSwarm.agentCount4 {
@@ -1281,23 +1487,23 @@ textarea:disabled {
 
 .agentSwarm.agentCount4 .subAgentGrid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 7px;
+  gap: 8px;
 }
 
 .agentSwarm.agentCount4 .subAgentCard {
   min-height: 118px;
-  gap: 6px;
-  padding: 8px;
+  gap: 7px;
+  padding: 10px;
 }
 
 .agentSwarm.agentCount4 .agentAvatar {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
 }
 
 .agentSwarm.agentCount4 .agentIcon svg {
-  width: 15px;
-  height: 15px;
+  width: 13px;
+  height: 13px;
 }
 
 .agentSwarm.agentCount4 .agentStatus {
@@ -1306,30 +1512,29 @@ textarea:disabled {
 }
 
 .agentSwarm.agentCount4 .subAgentCard strong {
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.15;
 }
 
 .agentSwarm.agentCount4 .subAgentCard small {
   display: -webkit-box;
-  min-height: 28px;
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  font-size: 10px;
+  font-size: 9px;
 }
 
 .agentSwarm.agentCount4 .agentPhase {
-  font-size: 9px;
+  font-size: 8px;
 }
 
 .subAgentCard {
   min-width: 0;
-  min-height: 112px;
+  min-height: 116px;
   display: grid;
   align-content: start;
-  gap: 6px;
-  padding: 8px;
+  gap: 7px;
+  padding: 10px;
   border: 1px solid #d9d1c9;
   border-radius: 8px;
   background: #fff;
@@ -1356,13 +1561,46 @@ textarea:disabled {
 .subAgentTop {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
 }
 
+.subAgentTop .agentStatus {
+  margin-left: auto;
+}
+
+.oracleAgentMark {
+  width: 68px;
+  height: 20px;
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  color: var(--oracle-red);
+}
+
+.oracleAgentMark svg {
+  width: 68px;
+  height: 20px;
+  display: block;
+}
+
+.oracleAgentMark rect {
+  fill: #fff6f3;
+  stroke: rgba(199, 70, 52, 0.42);
+  stroke-width: 1.2;
+}
+
+.oracleAgentMark text {
+  fill: currentColor;
+  font-family: var(--font);
+  font-size: 8.5px;
+  font-weight: 950;
+  letter-spacing: 1.25px;
+}
+
 .agentAvatar {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 8px;
   display: grid;
   place-items: center;
@@ -1371,8 +1609,8 @@ textarea:disabled {
 }
 
 .agentIcon svg {
-  width: 15px;
-  height: 15px;
+  width: 13px;
+  height: 13px;
   display: block;
   fill: none;
   stroke: currentColor;
@@ -1413,25 +1651,30 @@ textarea:disabled {
 }
 
 .subAgentCard strong {
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.15;
 }
 
 .subAgentCard small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   color: #625b54;
-  font-size: 10px;
+  font-size: 9px;
   line-height: 1.25;
 }
 
 .agentSignal {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  margin-top: 2px;
+  gap: 3px;
+  margin-top: 0;
 }
 
 .agentSignal span {
-  height: 4px;
+  height: 3px;
   border-radius: 999px;
   background: #ded8d1;
 }
@@ -1446,7 +1689,7 @@ textarea:disabled {
 }
 
 .agentProgressTrack {
-  height: 5px;
+  height: 4px;
   overflow: hidden;
   border-radius: 999px;
   background: #ede8e2;
@@ -1467,7 +1710,7 @@ textarea:disabled {
 
 .agentPhase {
   color: #776d65;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 850;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1572,10 +1815,10 @@ textarea:disabled {
 }
 
 .blueprintPage .bpNode {
-  min-height: 38px;
-  grid-template-columns: 28px minmax(0, 1fr);
-  gap: 7px;
-  padding: 6px 8px;
+  min-height: 34px;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 6px;
+  padding: 5px 7px;
 }
 
 .bpNode.active {
@@ -1601,8 +1844,8 @@ textarea:disabled {
 }
 
 .blueprintPage .bpIcon {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   font-size: 9px;
 }
 
@@ -1613,13 +1856,13 @@ textarea:disabled {
 }
 
 .bpNode strong {
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .bpNode small {
-  margin-top: 2px;
+  margin-top: 1px;
   color: #6e665f;
-  font-size: 10px;
+  font-size: 9px;
   line-height: 1.25;
 }
 
@@ -1633,7 +1876,8 @@ textarea:disabled {
 }
 
 .blueprintPage .edge {
-  height: 18px;
+  height: 22px;
+  min-height: 22px;
 }
 
 .edge.active {
@@ -2694,6 +2938,25 @@ tr:last-child td {
     align-content: start;
   }
 
+  .metroJourney {
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+  }
+
+  .metroHead {
+    display: none;
+  }
+
+  .metroTrack {
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: thin;
+  }
+
+  .metroStops {
+    min-width: 820px;
+  }
+
   .blueprintMainGrid .sideCompact {
     display: none;
   }
@@ -2782,6 +3045,27 @@ tr:last-child td {
 
   .content {
     padding: 14px;
+  }
+
+  .metroJourney {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 10px 14px 12px;
+  }
+
+  .metroActions {
+    display: none;
+  }
+
+  .metroStops {
+    min-width: 760px;
+  }
+
+  .metroText strong {
+    font-size: 10px;
+  }
+
+  .metroText small {
+    font-size: 9px;
   }
 
   .side {
