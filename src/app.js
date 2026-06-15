@@ -16,10 +16,13 @@ const state = {
   selectedKnowledgeIds: [],
   knowledgeContext: "",
   modalSourceId: "",
+  docViewerSourceId: "",
   settingsOpen: false,
   downloadModalOpen: false,
   downloadPayload: null,
   customQuestion: "",
+  traceOpen: false,
+  sourceRailOpen: false,
   run: emptyRun(),
   uploadedContent: [],
   leaderboard: readLeaderboard(),
@@ -43,6 +46,7 @@ function emptyRun() {
   return {
     running: false,
     currentStep: -1,
+    visualTick: 0,
     qnaId: "",
     question: "",
     response: "",
@@ -193,6 +197,29 @@ function runtimeSteps(pattern = patternById()) {
   return templates[pattern?.PatternName] || templates[patternFolder(pattern)] || [];
 }
 
+function runElapsed() {
+  if (!state.run.startedAt) return state.run.response ? RUN_TOTAL_MS : 0;
+  return state.run.running ? Date.now() - state.run.startedAt : state.run.durationMs || RUN_TOTAL_MS;
+}
+
+const RUN_TOTAL_MS = 5400;
+const RUN_PHASES = [
+  { step: 0, until: 520 },
+  { step: 1, until: 1320 },
+  { step: 2, until: 2150 },
+  { step: 3, until: 4550 },
+  { step: 4, until: RUN_TOTAL_MS },
+];
+
+function visualStepFromElapsed(elapsed) {
+  if (!state.run.question) return -1;
+  return RUN_PHASES.find((phase) => elapsed < phase.until)?.step ?? 4;
+}
+
+function clampPercent(value) {
+  return Math.max(0, Math.min(100, value));
+}
+
 function ensureDefaults(resetKnowledge = false) {
   const persona = personaById();
   if (!persona) return;
@@ -303,7 +330,7 @@ function render() {
   document.getElementById("app").innerHTML = `
     <div class="shell">
       ${renderTopbar()}
-      <div class="mainGrid">
+      <div class="mainGrid ${state.screen === "blueprint" ? "blueprintMainGrid" : ""}">
         ${renderSide()}
         <main class="content">${renderScreen()}</main>
       </div>
@@ -331,7 +358,7 @@ function renderTopbar() {
 
 function renderSide() {
   return `
-    <aside class="side">
+    <aside class="side ${state.screen === "blueprint" ? "sideCompact" : ""}">
       <h2>Guided Journey</h2>
       <div class="stepper">
         ${stepOrder.map((step, index) => renderStep(step, index)).join("")}
@@ -533,8 +560,7 @@ function renderBlueprintScreen() {
           <button class="action primary" data-add-leader>${uiIcon("award", "iconBox")}<span>Add to Leaderboard</span></button>
         </div>
       </div>
-      <div class="threePane">
-        ${renderKnowledgePane()}
+      <div class="blueprintWorkspace">
         ${renderBlueprintPane(blueprint)}
         ${renderChatPane()}
       </div>
@@ -594,6 +620,9 @@ function uiIcon(name, className = "buttonIcon") {
     image: `<rect x="4" y="5" width="16" height="14" rx="2"></rect><circle cx="9" cy="10" r="1.5"></circle><path d="m8 17 3.5-4 2.5 3 1.5-2 2.5 3"></path>`,
     upload: `<path d="M12 16V5"></path><path d="m7 10 5-5 5 5"></path><path d="M5 20h14"></path>`,
     folder: `<path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5v-9Z"></path>`,
+    list: `<path d="M8 6h13"></path><path d="M8 12h13"></path><path d="M8 18h13"></path><path d="M3 6h.01"></path><path d="M3 12h.01"></path><path d="M3 18h.01"></path>`,
+    bot: `<rect x="5" y="8" width="14" height="10" rx="3"></rect><path d="M12 8V4"></path><circle cx="9" cy="13" r="1"></circle><circle cx="15" cy="13" r="1"></circle><path d="M9 18v2"></path><path d="M15 18v2"></path>`,
+    database: `<ellipse cx="12" cy="5" rx="7" ry="3"></ellipse><path d="M5 5v6c0 1.66 3.13 3 7 3s7-1.34 7-3V5"></path><path d="M5 11v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6"></path>`,
   };
   return `<span class="${esc(className)}" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false">${icons[name] || icons.download}</svg></span>`;
 }
@@ -607,14 +636,51 @@ function renderBlueprintPane(blueprint) {
             <h3>${esc(patternById()?.PatternName || "Agent Pattern")}</h3>
             <p>${esc(blueprint?.BlueprintTheme || "Workbook mapped architecture")}</p>
           </div>
-          <span class="pill red">${esc(patternById()?.PatternName)}</span>
+          <div class="canvasActions">
+            ${renderSourceRailButton()}
+            <span class="pill red">${esc(patternById()?.PatternName)}</span>
+          </div>
         </div>
       </div>
       <div class="canvas">
+        ${renderKnowledgeSourceRail()}
         ${renderBranchedBlueprint()}
       </div>
       ${renderRuntime()}
     </section>
+  `;
+}
+
+function renderSourceRailButton() {
+  const count = selectedSources().length;
+  return `
+    <button class="canvasToolButton" type="button" data-source-rail-toggle aria-expanded="${state.sourceRailOpen ? "true" : "false"}">
+      ${uiIcon("database", "iconBox")}<span>Sources</span><b>${count}</b>
+    </button>
+  `;
+}
+
+function renderKnowledgeSourceRail() {
+  const editable = state.experience === "Engineer";
+  const sources = availableSourcesFor();
+  const selected = new Set(state.selectedKnowledgeIds);
+  return `
+    <aside class="sourceRail ${state.sourceRailOpen ? "open" : ""}" aria-label="Knowledge Sources">
+      ${state.sourceRailOpen ? `
+        <div class="sourceRailPanel">
+          <div class="sourceRailHead">
+            <div>
+              <strong>Knowledge Sources</strong>
+              <small>Used only when you need to inspect evidence</small>
+            </div>
+            <button class="sourceIconButton" type="button" data-source-rail-toggle aria-label="Hide knowledge sources">${uiIcon("close", "traceCloseIcon")}</button>
+          </div>
+          <div class="sourceList compactSourceList">
+            ${sources.map((source) => renderSourceRow(source, selected.has(source.KnowledgeID), editable)).join("") || `<div class="empty">No workbook sources mapped for this persona and pattern.</div>`}
+          </div>
+        </div>
+      ` : ""}
+    </aside>
   `;
 }
 
@@ -629,9 +695,10 @@ function renderBranchedBlueprint() {
       ${renderFlowNode(userNode, 0)}
       ${renderFlowConnector(0)}
       ${renderFlowNode({ label: "AI Orchestrator", detail: "Classifies intent and dispatches selected branches" }, 1, "orchestrator")}
-      ${renderBranchGroup("Knowledge Source Branches", sources.slice(0, 4).map((source) => renderSourceBranch(source, 2)).join(""), 2, "sourceBranches")}
+      ${renderFlowConnector(1)}
+      ${renderSourceConstellation(sources.slice(0, 4), 2)}
       ${renderFlowConnector(2)}
-      ${renderBranchGroup("Agent Worker Branches", workerNodes.slice(0, 4).map((node) => renderWorkerBranch(node, 3)).join(""), 3, "workerBranches")}
+      ${renderAgentWorkerSwarm(workerNodes.slice(0, 4), 3)}
       ${renderFlowConnector(3)}
       ${renderFlowNode(responseNode, 4, "response")}
     </div>
@@ -639,7 +706,7 @@ function renderBranchedBlueprint() {
 }
 
 function flowStageClass(stage) {
-  const current = state.run.currentStep;
+  const current = state.run.running ? visualStepFromElapsed(runElapsed()) : state.run.currentStep;
   const active = current === stage;
   const done = current > stage || (!state.run.running && state.run.response && current >= stage);
   return `${active ? "active" : ""} ${done ? "done" : ""}`;
@@ -655,21 +722,114 @@ function renderFlowNode(node, stage, extraClass = "") {
 }
 
 function renderSourceBranch(source, stage) {
+  const status = sourceVisualStatus(stage);
   return `
     <div class="branchCard sourceBranch ${flowStageClass(stage)}">
       <span class="bpIcon">${esc(shortCode(source.KnowledgeSource))}</span>
-      <span><strong>${esc(source.KnowledgeSource)}</strong><small>${esc(source.Channel || source.SourceType || "Workbook source")}</small></span>
+      <span><strong>${esc(source.KnowledgeSource)}</strong><small>${esc(status || source.Channel || source.SourceType || "Workbook source")}</small></span>
+    </div>
+  `;
+}
+
+function sourceVisualStatus(stage) {
+  const current = state.run.running ? visualStepFromElapsed(runElapsed()) : state.run.currentStep;
+  if (!state.run.question || current < stage) return "";
+  if (current === stage) return "Retrieving evidence...";
+  return "Evidence selected";
+}
+
+function renderSourceConstellation(sources, stage) {
+  return `
+    <div class="sourceConstellation ${flowStageClass(stage)}">
+      <div class="branchGroupTitle">Evidence retrieval</div>
+      <div class="sourceChipGrid">
+        ${sources.map((source) => renderSourceBranch(source, stage)).join("") || `<div class="empty miniEmpty">No workbook items selected</div>`}
+      </div>
     </div>
   `;
 }
 
 function renderWorkerBranch(node, stage) {
+  const index = Number(node.__agentIndex || 0);
+  const total = Number(node.__agentTotal || 1);
+  const status = subAgentStatus(stage, index, total);
+  const steps = subAgentStepClasses(status.progress);
   return `
-    <div class="branchCard workerBranch ${flowStageClass(stage)}">
-      <span class="bpIcon">${esc(shortCode(node.label))}</span>
-      <span><strong>${esc(node.label)}</strong><small>${esc(node.detail)}</small></span>
+    <div class="subAgentCard ${esc(status.cardClass)}" style="--agent-progress: ${status.progress}%">
+      <div class="subAgentTop">
+        <span class="agentAvatar">${uiIcon("bot", "agentIcon")}</span>
+        <span class="agentStatus ${esc(status.className)}">${esc(status.label)}</span>
+      </div>
+      <strong>${esc(node.label)} Agent</strong>
+      <small>${esc(node.detail)}</small>
+      <div class="agentSignal">
+        <span class="${steps[0]}"></span><span class="${steps[1]}"></span><span class="${steps[2]}"></span>
+      </div>
+      <div class="agentProgressTrack"><span></span></div>
+      <div class="agentPhase">${esc(status.phase)}</div>
     </div>
   `;
+}
+
+function renderAgentWorkerSwarm(nodes, stage) {
+  const groupClass = agentSwarmStatusClass(nodes, stage);
+  return `
+    <section class="agentSwarm agentCount${nodes.length || 0} ${groupClass}" aria-label="Agent Worker Branches">
+      <div class="agentSwarmHead">
+        <div>
+          <span>Agent Worker Branches</span>
+          <strong>Independent sub-agent execution</strong>
+        </div>
+        <b>${nodes.length || 0} agents</b>
+      </div>
+      <div class="subAgentGrid">
+        ${nodes.map((node, index) => renderWorkerBranch({ ...node, __agentIndex: index, __agentTotal: nodes.length }, stage)).join("") || `<div class="empty miniEmpty">No worker agents mapped for this pattern</div>`}
+      </div>
+    </section>
+  `;
+}
+
+function agentSwarmStatusClass(nodes, stage) {
+  if (!nodes.length) return flowStageClass(stage);
+  const statuses = nodes.map((_, index) => subAgentStatus(stage, index, nodes.length));
+  if (statuses.every((status) => status.cardClass === "done")) return "done";
+  if (statuses.some((status) => status.cardClass === "active")) return "active";
+  if (statuses.some((status) => status.cardClass === "queued")) return "queued";
+  return flowStageClass(stage);
+}
+
+function subAgentStatus(stage, index = 0, total = 1) {
+  if (!state.run.question) return { label: "Ready", className: "", cardClass: "", progress: 0, phase: "Waiting for query" };
+  const elapsed = runElapsed();
+  const start = 2100 + index * 360;
+  const duration = Math.max(1450, 2350 - total * 130);
+  const progress = clampPercent(Math.round(((elapsed - start) / duration) * 100));
+  if (state.run.response || progress >= 100) {
+    return { label: "Complete", className: "done", cardClass: "done", progress: 100, phase: "Returned result" };
+  }
+  if (progress > 0) {
+    const phase = progress < 34 ? "Reading context" : progress < 70 ? "Reasoning independently" : "Returning result";
+    return { label: "Running", className: "running", cardClass: "active", progress, phase };
+  }
+  const current = state.run.running ? visualStepFromElapsed(elapsed) : state.run.currentStep;
+  return {
+    label: current >= stage ? "Queued" : "Ready",
+    className: current >= stage ? "queued" : "",
+    cardClass: current >= stage ? "queued" : "",
+    progress: 0,
+    phase: current >= stage ? "Waiting for dispatch" : "Waiting for query",
+  };
+}
+
+function subAgentStepClasses(progress) {
+  if (progress >= 100) return ["done", "done", "done"];
+  const activeThresholds = [18, 52, 86];
+  const doneThresholds = [34, 70, 100];
+  return activeThresholds.map((threshold, index) => {
+    if (progress >= doneThresholds[index]) return "done";
+    if (progress >= threshold) return "active";
+    return index === 0 && progress > 0 ? "active" : "";
+  });
 }
 
 function renderBranchGroup(title, cards, stage, className) {
@@ -684,7 +844,8 @@ function renderBranchGroup(title, cards, stage, className) {
 }
 
 function renderFlowConnector(stage) {
-  return `<div class="edge flowConnector ${state.run.currentStep > stage ? "active" : ""}"></div>`;
+  const current = state.run.running ? visualStepFromElapsed(runElapsed()) : state.run.currentStep;
+  return `<div class="edge flowConnector ${current > stage ? "active" : ""} ${current === stage ? "live" : ""}"><span></span></div>`;
 }
 
 function renderForkConnector(stage) {
@@ -713,18 +874,30 @@ function renderRuntime() {
   const steps = runtimeSteps();
   const nodeCount = blueprintNodes().length;
   const current = state.run.currentStep;
+  const status = state.run.running ? "Running" : state.run.response ? "Complete" : "Idle";
+  const statusClass = state.run.running ? "amber" : state.run.response ? "green" : "";
+  const summary = state.run.running ? "Blueprint is executing." : state.run.response ? `Completed in ${state.run.durationMs} ms.` : "Run a question to animate the path.";
   return `
-    <div class="runtime">
-      <div class="panelHead" style="margin-bottom: 0">
-        <div>
-          <h4>Execution Trace</h4>
-          <p class="small">${state.run.running ? "Blueprint is executing." : state.run.response ? `Completed in ${state.run.durationMs} ms.` : "Run a question to animate the path."}</p>
-        </div>
-        <span class="pill ${state.run.running ? "amber" : state.run.response ? "green" : ""}">${state.run.running ? "Running" : state.run.response ? "Complete" : "Idle"}</span>
-      </div>
-      <div class="trace">
-        ${steps.map((step, index) => `<div class="traceRow ${current >= Math.min(index + 1, nodeCount - 1) ? "done" : ""}"><span class="traceDot">${index + 1}</span><span>${esc(step)}</span></div>`).join("")}
-      </div>
+    <div class="runtime ${state.traceOpen ? "open" : ""}">
+      <button class="traceToggle" type="button" data-trace-toggle aria-expanded="${state.traceOpen ? "true" : "false"}">
+        ${uiIcon("list", "iconBox")}
+        <span>Execution Trace</span>
+        <b class="pill ${statusClass}">${esc(status)}</b>
+      </button>
+      ${state.traceOpen ? `
+        <section class="tracePopover" aria-label="Execution Trace">
+          <div class="panelHead">
+            <div>
+              <h4>Execution Trace</h4>
+              <p class="small">${esc(summary)}</p>
+            </div>
+            <button class="sourceIconButton" type="button" data-trace-toggle aria-label="Close execution trace">${uiIcon("close", "traceCloseIcon")}</button>
+          </div>
+          <div class="trace">
+            ${steps.map((step, index) => `<div class="traceRow ${current >= Math.min(index + 1, nodeCount - 1) ? "done" : ""}"><span class="traceDot">${index + 1}</span><span>${esc(step)}</span></div>`).join("")}
+          </div>
+        </section>
+      ` : ""}
     </div>
   `;
 }
@@ -874,15 +1047,10 @@ function renderModal() {
             <section class="previewBox sourcePreviewBox">
               ${renderFocusedSourcePreview(source, previewKind, files)}
             </section>
-            <section class="previewBox sourceFilesBox">
-              <h4>Mapped file</h4>
-              <div class="fileList">
-                ${files.length ? files.slice(0, 1).map(renderFileItem).join("") : `<p class="small">No local file is detected for this source type yet.</p>`}
-              </div>
-            </section>
           </div>
         </div>
       </section>
+      ${state.docViewerSourceId ? renderDocumentViewerModal() : ""}
     </div>
   `;
 }
@@ -992,7 +1160,7 @@ function renderFocusedSourcePreview(source, kind, files) {
 }
 
 function renderDocumentPreview(source, files) {
-  const primary = files[0];
+  const primary = primaryDocumentFile(files);
   return `
     <h4>Document preview</h4>
     <div class="documentPreview">
@@ -1006,9 +1174,130 @@ function renderDocumentPreview(source, files) {
           <li>Scoped to ${esc(personaById()?.PersonaName || "selected persona")}</li>
         </ul>
       </div>
-      ${primary ? `<a class="fileOpenLink" href="${esc(primary.path)}" target="_blank" rel="noopener">Open ${esc(primary.name)}</a>` : ""}
+      ${primary ? `<button class="fileOpenLink" type="button" data-doc-open="${esc(source.KnowledgeID)}">${uiIcon("folder", "iconBox")}<span>Open ${esc(primary.name)}</span></button>` : ""}
     </div>
   `;
+}
+
+function primaryDocumentFile(files) {
+  return files.find((file) => file.extension === "docx") || files.find((file) => ["pdf", "md"].includes(file.extension)) || files[0] || null;
+}
+
+function renderDocumentViewerModal() {
+  const source = sourceById(state.docViewerSourceId);
+  if (!source) return "";
+  const file = primaryDocumentFile(filesForSource(source));
+  const persona = personaById()?.PersonaName || "Selected Persona";
+  const pattern = patternById()?.PatternName || "Agent Pattern";
+  const group = personaGroup();
+  const generated = new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  const sections = documentViewerSections(source, file);
+  return `
+    <div class="docViewerBackdrop" data-doc-close>
+      <section class="modal docViewerModal" role="dialog" aria-modal="true" aria-label="Document viewer">
+        <header class="modalHead docViewerHead">
+          <div>
+            <div class="eyebrow">Document Viewer</div>
+            <h2>${esc(file?.name || source.KnowledgeSource)}</h2>
+            <p>${esc(source.KnowledgeSource)} - ${esc(pattern)} - ${esc(persona)}</p>
+          </div>
+          <button class="action secondary" data-doc-close>${uiIcon("close", "iconBox")}<span>Close</span></button>
+        </header>
+        <div class="docViewerBody">
+          <aside class="docViewerRail">
+            <div class="docMetaBlock">
+              <span class="fileType">${esc(file?.extension || "doc")}</span>
+              <strong>${esc(file?.name || "source_document.docx")}</strong>
+              <small>${esc(file?.path || "Workbook generated source preview")}</small>
+            </div>
+            <div class="docOutline">
+              ${sections.map((section, index) => `<a href="#doc-section-${index + 1}">${esc(section.title)}</a>`).join("")}
+            </div>
+          </aside>
+          <main class="docCanvas" aria-label="Document pages">
+            <article class="docSheet">
+              <header class="docSheetHeader">
+                <div class="docBrandMark">AI</div>
+                <div>
+                  <div class="docTitle">${esc(source.KnowledgeSource)}</div>
+                  <div class="docSubtitle">${esc(file?.name || "sample_handbook.docx")} - ${esc(group)} knowledge source</div>
+                </div>
+              </header>
+              <section class="docHero">
+                <p class="docLabel">OCI AI Factory Source Document</p>
+                <h1>${esc(source.KnowledgeSource)} Handbook</h1>
+                <p>${esc(source.Description || "Source content used by the selected blueprint to answer grounded questions.")}</p>
+              </section>
+              <div class="docInfoGrid">
+                <div><span>Pattern</span><strong>${esc(pattern)}</strong></div>
+                <div><span>Persona</span><strong>${esc(persona)}</strong></div>
+                <div><span>Generated</span><strong>${esc(generated)}</strong></div>
+              </div>
+              ${sections.map((section, index) => renderDocSection(section, index)).join("")}
+              <footer class="docSheetFooter">
+                <span>AgentifyME OCI AI Factory</span>
+                <span>${esc(file?.path || source.KnowledgeID)}</span>
+              </footer>
+            </article>
+          </main>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function renderDocSection(section, index) {
+  return `
+    <section class="docSection" id="doc-section-${index + 1}">
+      <p class="docSectionNum">${String(index + 1).padStart(2, "0")}</p>
+      <div>
+        <h3>${esc(section.title)}</h3>
+        <p>${esc(section.body)}</p>
+        ${section.points?.length ? `<ul>${section.points.map((point) => `<li>${esc(point)}</li>`).join("")}</ul>` : ""}
+      </div>
+    </section>
+  `;
+}
+
+function documentViewerSections(source, file) {
+  const sourceName = source.KnowledgeSource || "Knowledge Source";
+  const sourceText = `${sourceName} ${source.Description} ${source.SourceType} ${source.Channel}`.toLowerCase();
+  if (sourceText.includes("policy") || sourceText.includes("handbook") || sourceText.includes("sop")) {
+    return [
+      {
+        title: "Purpose and Scope",
+        body: `${sourceName} is used as the approved policy reference for the selected blueprint. The assistant should ground answers in this document before responding to employee or manager questions.`,
+        points: ["Applies to the selected persona workflow.", "Used for eligibility, approval, exception, and escalation guidance.", "Responses should cite the relevant policy area when possible."],
+      },
+      {
+        title: "Eligibility and Approvals",
+        body: "Policy questions are resolved by matching the employee situation to documented eligibility rules, then checking whether manager, HR operations, or specialist approval is required.",
+        points: ["Confirm employee type, location, and effective dates.", "Check approval routing before recommending an action.", "Escalate exceptions or missing evidence to HR review."],
+      },
+      {
+        title: "Response Guidance",
+        body: "The digital worker should provide concise, business-readable answers and avoid unsupported interpretation when the source document does not contain enough evidence.",
+        points: ["Summarize the answer first.", "List required next steps.", "Call out unknowns and required human review."],
+      },
+      {
+        title: "Document Metadata",
+        body: `This preview represents ${file?.name || "the mapped handbook document"} from the local KnowledgeSources repository. It is displayed in-app to avoid browser downloads during demos.`,
+        points: [`Source type: ${source.SourceType || "Document"}`, `Channel: ${source.Channel || "Document"}`, `Source ID: ${source.KnowledgeID}`],
+      },
+    ];
+  }
+  return [
+    {
+      title: "Source Overview",
+      body: `${sourceName} provides source evidence for the current AI Factory blueprint. The assistant uses it to ground answers and execution traces.`,
+      points: [`Pattern: ${patternById()?.PatternName || "selected pattern"}`, `Persona: ${personaById()?.PersonaName || "selected persona"}`, `Source type: ${source.SourceType || "Document"}`],
+    },
+    {
+      title: "Usage in Blueprint",
+      body: "During a test run, the orchestrator selects the source branch, retrieves the relevant evidence, and passes the result to the worker branch before generating the final response.",
+      points: ["Classify user intent.", "Retrieve relevant source evidence.", "Return grounded answer with source rationale."],
+    },
+  ];
 }
 
 function renderDatasetPreview(source) {
@@ -1196,26 +1485,27 @@ function startRun(qnaId, customQuestion = "") {
     ...emptyRun(),
     running: true,
     currentStep: 0,
+    visualTick: 0,
     qnaId: qnaId || "",
     question,
     startedAt: Date.now(),
     isCustom: Boolean(customQuestion),
   };
   render();
-  const total = Math.max(blueprintNodes().length, 1);
   runTimer = window.setInterval(() => {
-    if (state.run.currentStep < total - 1) {
-      state.run.currentStep += 1;
-      render();
-      return;
+    const elapsed = Date.now() - state.run.startedAt;
+    state.run.visualTick += 1;
+    state.run.currentStep = visualStepFromElapsed(elapsed);
+    if (elapsed >= RUN_TOTAL_MS) {
+      window.clearInterval(runTimer);
+      runTimer = null;
+      state.run.running = false;
+      state.run.currentStep = 4;
+      state.run.durationMs = elapsed;
+      state.run.response = state.run.isCustom ? customResponse(question) : workbookResponse(qna);
     }
-    window.clearInterval(runTimer);
-    runTimer = null;
-    state.run.running = false;
-    state.run.durationMs = Date.now() - state.run.startedAt;
-    state.run.response = state.run.isCustom ? customResponse(question) : workbookResponse(qna);
     render();
-  }, 620);
+  }, 180);
 }
 
 function workbookResponse(qna) {
@@ -1318,6 +1608,7 @@ function openDownloadModal(payload = null) {
   state.downloadPayload = data;
   state.downloadModalOpen = true;
   state.modalSourceId = "";
+  state.docViewerSourceId = "";
   state.settingsOpen = false;
   localStorage.setItem("ociAiFactoryPendingBlueprintDownload", JSON.stringify(data));
   render();
@@ -1549,9 +1840,12 @@ function resetAfterWorkbook() {
   state.selectedKnowledgeIds = [];
   state.knowledgeContext = "";
   state.modalSourceId = "";
+  state.docViewerSourceId = "";
   state.settingsOpen = false;
   state.downloadModalOpen = false;
   state.downloadPayload = null;
+  state.traceOpen = false;
+  state.sourceRailOpen = false;
   state.run = emptyRun();
   state.screen = "persona";
   render();
@@ -1569,12 +1863,31 @@ function handleContentUpload(files) {
 }
 
 document.addEventListener("click", (event) => {
-  const target = event.target.closest("[data-settings-open], button, [data-modal-close]");
+  const target = event.target.closest("[data-settings-open], [data-doc-close], [data-trace-toggle], [data-source-rail-toggle], button, [data-modal-close]");
   if (!target) return;
+  if (target.dataset.sourceRailToggle !== undefined) {
+    event.preventDefault();
+    state.sourceRailOpen = !state.sourceRailOpen;
+    return render();
+  }
+  if (target.dataset.traceToggle !== undefined) {
+    event.preventDefault();
+    state.traceOpen = !state.traceOpen;
+    return render();
+  }
+  if (target.dataset.docClose !== undefined) {
+    if (event.target === target || target.matches("button")) {
+      event.preventDefault();
+      state.docViewerSourceId = "";
+      return render();
+    }
+    return;
+  }
   if (target.dataset.settingsOpen !== undefined) {
     event.preventDefault();
     state.settingsOpen = true;
     state.modalSourceId = "";
+    state.docViewerSourceId = "";
     state.downloadModalOpen = false;
     state.downloadPayload = null;
     return render();
@@ -1582,6 +1895,7 @@ document.addEventListener("click", (event) => {
   if (target.dataset.modalClose !== undefined) {
     if (event.target === target || target.matches("button")) {
       state.modalSourceId = "";
+      state.docViewerSourceId = "";
       state.settingsOpen = false;
       state.downloadModalOpen = false;
       state.downloadPayload = null;
@@ -1604,6 +1918,8 @@ document.addEventListener("click", (event) => {
     state.selectedKnowledgeIds = [];
     state.knowledgeContext = "";
     state.run = emptyRun();
+    state.traceOpen = false;
+    state.sourceRailOpen = false;
     state.workerName = "";
     ensureDefaults(true);
     return render();
@@ -1615,6 +1931,8 @@ document.addEventListener("click", (event) => {
     state.selectedKnowledgeIds = [];
     state.knowledgeContext = "";
     state.run = emptyRun();
+    state.traceOpen = false;
+    state.sourceRailOpen = false;
     ensureDefaults(true);
     return render();
   }
@@ -1625,6 +1943,8 @@ document.addEventListener("click", (event) => {
   if (target.dataset.pattern) {
     state.patternId = target.dataset.pattern;
     state.run = emptyRun();
+    state.traceOpen = false;
+    state.sourceRailOpen = false;
     ensureDefaults(true);
     return render();
   }
@@ -1634,12 +1954,18 @@ document.addEventListener("click", (event) => {
     else selected.add(target.dataset.sourceToggle);
     state.selectedKnowledgeIds = [...selected];
     state.run = emptyRun();
+    state.traceOpen = false;
     return render();
   }
   if (target.dataset.sourceView) {
     state.modalSourceId = target.dataset.sourceView;
+    state.docViewerSourceId = "";
     state.downloadModalOpen = false;
     state.downloadPayload = null;
+    return render();
+  }
+  if (target.dataset.docOpen) {
+    state.docViewerSourceId = target.dataset.docOpen;
     return render();
   }
   if (target.dataset.runQuestion) return startRun(target.dataset.runQuestion);
@@ -1664,10 +1990,13 @@ function resetExperience() {
   state.selectedKnowledgeIds = [];
   state.knowledgeContext = "";
   state.modalSourceId = "";
+  state.docViewerSourceId = "";
   state.settingsOpen = false;
   state.downloadModalOpen = false;
   state.downloadPayload = null;
   state.customQuestion = "";
+  state.traceOpen = false;
+  state.sourceRailOpen = false;
   state.run = emptyRun();
 }
 
