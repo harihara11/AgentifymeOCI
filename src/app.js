@@ -322,7 +322,7 @@ function render() {
       ${renderTopbar()}
       ${renderMetroJourney()}
       <div class="mainGrid ${state.screen === "blueprint" ? "blueprintMainGrid" : ""}">
-        <main class="content">${renderScreen()}</main>
+        <main class="content ${state.screen === "pattern" ? "patternContent" : ""}">${renderScreen()}</main>
       </div>
       ${renderModal()}
     </div>
@@ -495,16 +495,17 @@ function renderPersonaCard(persona) {
 
 function renderPattern() {
   return `
-    <section class="page journeyPanel">
+    <section class="page journeyPanel patternPage">
       <div class="pageHead">
         <div>
           <div class="eyebrow">Agent capability</div>
           <h1>What your agent should do ?</h1>
         </div>
       </div>
-      <div class="grid four">
+      <div class="grid four capabilityGrid">
         ${patterns().map((pattern) => renderPatternCard(pattern)).join("")}
       </div>
+      ${state.patternId ? renderPatternConfigurator() : renderPatternEmptyPreview()}
       ${renderRouteActions("Build Blueprint", "&rarr;")}
     </section>
   `;
@@ -518,6 +519,52 @@ function renderPatternCard(pattern) {
       <h3>${esc(pattern.PatternName)}</h3>
       <p>${esc(pattern.Description)}</p>
     </button>
+  `;
+}
+
+function renderPatternEmptyPreview() {
+  return `
+    <section class="patternEmptyPreview">
+      <div>
+        <strong>Select a capability to preview the blueprint</strong>
+        <span>The Knowledge Base and blueprint map will appear here as soon as you choose an agent capability.</span>
+      </div>
+    </section>
+  `;
+}
+
+function renderPatternConfigurator() {
+  const blueprint = blueprintFor();
+  const sources = availableSourcesFor();
+  const selected = new Set(state.selectedKnowledgeIds);
+  return `
+    <section class="patternConfigurator" aria-label="Capability blueprint configuration">
+      <aside class="patternKnowledgePanel">
+        <div class="patternPanelHead">
+          <div>
+            <span>Knowledge Base</span>
+            <strong>Select sources</strong>
+          </div>
+          <b>${selectedSources().length}/${sources.length || 0}</b>
+        </div>
+        <div class="sourceList patternSourceList">
+          ${sources.map((source) => renderSourceRow(source, selected.has(source.KnowledgeID), true)).join("") || `<div class="empty miniEmpty">No workbook sources mapped for this persona and capability.</div>`}
+        </div>
+      </aside>
+      <section class="patternBlueprintPreview">
+        <div class="patternPreviewHead">
+          <div>
+            <span>Blueprint Preview</span>
+            <strong>${esc(patternById()?.PatternName || "Selected capability")}</strong>
+            <small>${esc(blueprint?.BlueprintTheme || "Workbook mapped architecture")}</small>
+          </div>
+          <span class="pill red">${esc(patternById()?.PatternName || "Capability")}</span>
+        </div>
+        <div class="patternCanvas">
+          ${renderBranchedBlueprint()}
+        </div>
+      </section>
+    </section>
   `;
 }
 

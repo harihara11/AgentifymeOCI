@@ -444,6 +444,11 @@ button {
   background: linear-gradient(180deg, #f8f6f3 0%, #f3f0ec 100%);
 }
 
+.patternContent {
+  overflow: hidden;
+  padding: 10px 12px;
+}
+
 .blueprintMainGrid .content {
   padding: 10px;
 }
@@ -873,6 +878,312 @@ textarea:disabled {
   background: #fffaf8;
 }
 
+.patternPage {
+  height: calc(100vh - 154px);
+  max-height: calc(100vh - 154px);
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 8px;
+  overflow: hidden;
+  padding: 12px 20px 10px;
+}
+
+.patternPage .pageHead {
+  margin-bottom: 0;
+}
+
+.patternPage h1 {
+  font-size: 26px;
+}
+
+.capabilityGrid {
+  gap: 10px;
+}
+
+.capabilityGrid .choice {
+  min-height: 66px;
+  padding: 10px 42px 10px 14px;
+}
+
+.capabilityGrid .choice h3 {
+  font-size: 17px;
+}
+
+.capabilityGrid .choice p {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.18;
+}
+
+.patternPage .routeActions {
+  min-height: 36px;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.patternPage .routeActions .action {
+  min-height: 36px;
+  padding: 8px 12px;
+}
+
+.patternEmptyPreview {
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  background:
+    radial-gradient(#e0d9d2 1px, transparent 1px),
+    linear-gradient(180deg, #fffdfa, #f7f4ef);
+  background-size: 22px 22px, 100% 100%;
+}
+
+.patternEmptyPreview div {
+  max-width: 460px;
+  text-align: center;
+}
+
+.patternEmptyPreview strong,
+.patternEmptyPreview span {
+  display: block;
+}
+
+.patternEmptyPreview strong {
+  font-size: 18px;
+}
+
+.patternEmptyPreview span {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.patternConfigurator {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.patternKnowledgePanel,
+.patternBlueprintPreview {
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 10px 26px rgba(28, 24, 20, 0.08);
+}
+
+.patternKnowledgePanel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.patternPanelHead,
+.patternPreviewHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.patternPanelHead span,
+.patternPreviewHead span:not(.pill),
+.patternPreviewHead small,
+.patternPanelHead strong,
+.patternPreviewHead strong {
+  display: block;
+}
+
+.patternPanelHead span,
+.patternPreviewHead span:not(.pill) {
+  color: var(--oracle-red);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.patternPanelHead strong,
+.patternPreviewHead strong {
+  margin-top: 2px;
+  font-size: 14px;
+}
+
+.patternPreviewHead small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.patternPanelHead b {
+  min-width: 38px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--oracle-red);
+  font-size: 12px;
+}
+
+.patternSourceList {
+  min-height: 0;
+  overflow: auto;
+  gap: 6px;
+  padding: 10px;
+}
+
+.patternSourceList .sourceRow {
+  min-height: 42px;
+  padding: 8px;
+}
+
+.patternSourceList .sourceRow h4 {
+  font-size: 12px;
+}
+
+.patternBlueprintPreview {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.patternCanvas {
+  min-height: 0;
+  display: grid;
+  overflow: hidden;
+  padding: 9px 12px 28px;
+  background:
+    radial-gradient(#dcd6cf 1px, transparent 1px),
+    linear-gradient(180deg, #f9f8f6, #f2f0ed);
+  background-size: 22px 22px, 100% 100%;
+}
+
+.patternCanvas .branchFlow {
+  min-height: 100%;
+  grid-template-rows:
+    auto 9px
+    auto 9px
+    minmax(44px, auto) 9px
+    minmax(110px, auto) 9px
+    auto;
+  align-content: space-evenly;
+  padding-top: 0;
+}
+
+.patternCanvas .sourceConstellation {
+  min-height: 44px;
+  padding: 5px 8px;
+}
+
+.patternCanvas .agentSwarm {
+  min-height: 112px;
+  gap: 7px;
+  padding: 8px;
+}
+
+.patternCanvas .agentSwarmHead span {
+  font-size: 8px;
+}
+
+.patternCanvas .agentSwarmHead strong {
+  font-size: 11px;
+}
+
+.patternCanvas .agentSwarmHead b {
+  padding: 3px 7px;
+  font-size: 10px;
+}
+
+.patternCanvas .subAgentGrid,
+.patternCanvas .agentSwarm.agentCount4 .subAgentGrid {
+  gap: 5px;
+}
+
+.patternCanvas .subAgentCard {
+  min-height: 76px;
+  padding: 7px;
+  gap: 5px;
+}
+
+.patternCanvas .agentSwarm.agentCount4 .subAgentCard {
+  min-height: 76px;
+  padding: 7px;
+}
+
+.patternCanvas .agentSignal,
+.patternCanvas .agentProgressTrack,
+.patternCanvas .agentPhase {
+  display: none;
+}
+
+.patternCanvas .subAgentCard small {
+  display: -webkit-box;
+  font-size: 8px;
+  line-height: 1.2;
+}
+
+.patternCanvas .subAgentCard strong,
+.patternCanvas .agentSwarm.agentCount4 .subAgentCard strong {
+  font-size: 10px;
+}
+
+.patternCanvas .oracleAgentMark {
+  width: 54px;
+  height: 16px;
+}
+
+.patternCanvas .oracleAgentMark svg {
+  width: 54px;
+  height: 16px;
+}
+
+.patternCanvas .oracleAgentMark text {
+  font-size: 7px;
+}
+
+.patternCanvas .edge {
+  height: 9px;
+  min-height: 9px;
+}
+
+.patternCanvas .bpNode {
+  min-height: 30px;
+  padding: 5px 7px;
+}
+
+.patternCanvas .bpIcon {
+  width: 24px;
+  height: 24px;
+}
+
+.patternCanvas .branchGroupTitle {
+  font-size: 8px;
+}
+
+.patternCanvas .sourceChipGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  justify-content: stretch;
+}
+
+.patternCanvas .branchCard,
+.patternCanvas .sourceConstellation .branchCard {
+  min-height: 28px;
+  padding: 3px 6px;
+}
+
+.patternCanvas .branchCard strong {
+  font-size: 10px;
+}
+
+.patternCanvas .branchCard small {
+  font-size: 8px;
+}
+
 .choiceKicker {
   margin-bottom: 8px;
   color: var(--oracle-red);
@@ -1274,7 +1585,7 @@ textarea:disabled {
 }
 
 .sourceConstellation {
-  width: min(100%, 700px);
+  width: min(100%, 760px);
   min-height: 62px;
   position: relative;
   z-index: 2;
@@ -1321,8 +1632,8 @@ textarea:disabled {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 180px));
-  justify-content: center;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  justify-content: stretch;
   gap: 4px;
 }
 
@@ -1375,8 +1686,9 @@ textarea:disabled {
 
 .sourceConstellation .branchCard {
   min-height: 30px;
-  grid-template-columns: 24px minmax(0, 1fr);
-  padding: 4px 6px;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 5px;
+  padding: 4px 5px;
 }
 
 .branchCard strong,
