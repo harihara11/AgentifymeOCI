@@ -34,7 +34,7 @@ const stepLabels = {
   register: ["Register", "Your Nick Name"],
   persona: ["Persona", "Role + worker name"],
   pattern: ["What your agent should do ?", "Select capability"],
-  blueprint: ["Blueprint", "Build + test"],
+  blueprint: ["Run Agent", "Question + trace"],
   leaderboard: ["Complete", "Leaderboard + download"],
 };
 
@@ -341,7 +341,9 @@ function renderTopbar() {
         <button class="settingsButton" type="button" data-settings-open="true" aria-label="Settings" aria-haspopup="dialog" title="Settings">
           ${uiIcon("settings")}
         </button>
-        <div class="oracle">ORACLE</div>
+        <a class="oracleLogo" href="https://icon-icons.com/authors/934-julien-monty" target="_blank" rel="noreferrer" title="Oracle logo credit: Icon-Icons.com" aria-label="Oracle logo">
+          ${oracleWordmark()}
+        </a>
       </div>
     </header>
   `;
@@ -507,7 +509,7 @@ function renderPattern() {
         ${patterns().map((pattern) => renderPatternCard(pattern)).join("")}
       </div>
       ${state.patternId ? renderPatternConfigurator() : renderPatternEmptyPreview()}
-      ${renderRouteActions("Build Blueprint", "&rarr;")}
+      ${renderRouteActions("Run Agent", "&rarr;")}
     </section>
   `;
 }
@@ -573,6 +575,10 @@ function renderPatternConfigurator() {
 }
 
 function renderBlueprintScreen() {
+  return renderAgentRunScreen();
+}
+
+function renderBlueprintCanvasScreen() {
   const blueprint = blueprintFor();
   return `
     <section class="page journeyPanel blueprintPage">
@@ -591,6 +597,202 @@ function renderBlueprintScreen() {
         ${renderChatPane()}
       </div>
       ${renderRouteActions("Next", "&rarr;")}
+    </section>
+  `;
+}
+
+function renderAgentRunScreen() {
+  const chatbotName = state.workerName.trim() || "Digital Worker";
+  return `
+    <section class="page agentRunPage">
+      <div class="runTopLine">
+        <button class="action secondary" data-route-prev>&larr; Back</button>
+        <div class="runAgentTitle">
+          <span class="chatHeaderIcon">${esc(shortCode(chatbotName))}</span>
+          <div>
+            <h1>${esc(chatbotName)}</h1>
+            <small>${esc(patternById()?.PatternName || "Selected capability")} agent test</small>
+          </div>
+        </div>
+        <div class="btnRow runTopActions">
+          <button class="action secondary" data-download-qr>${uiIcon("download", "iconBox")}<span>Download Blueprint</span></button>
+          <button class="action primary" data-route-next>Complete &rarr;</button>
+        </div>
+      </div>
+      <div class="agentRunWorkspace">
+        ${renderAgentChatSurface(chatbotName)}
+        ${renderAgentThinkingPanel()}
+      </div>
+    </section>
+  `;
+}
+
+function renderAgentChatSurface(chatbotName) {
+  const qs = questionsFor();
+  const hasRun = Boolean(state.run.question);
+  return `
+    <section class="agentChatSurface" aria-label="${esc(chatbotName)} chat">
+      <div class="agentChatBody">
+        ${hasRun ? renderRunConversation(chatbotName) : renderRunEmptyState(chatbotName)}
+      </div>
+      <div class="runSuggested">
+        <div class="suggestedTitle">${hasRun ? "Follow-up questions" : "Suggested questions"}</div>
+        <div class="runQuestionStrip">
+          ${qs.map((q) => `<button class="runQuestion" data-run-question="${esc(q.QnAID)}">${esc(q.Question)}</button>`).join("") || `<div class="empty miniEmpty">No workbook questions mapped for this scenario.</div>`}
+        </div>
+      </div>
+      <div class="runComposerWrap">
+        <div class="typingRecommendations" data-typing-recommendations>
+          ${renderTypingRecommendations()}
+        </div>
+        <div class="runComposer">
+          <button class="composerIconButton" type="button" aria-label="Attach context">+</button>
+          <textarea id="customQuestion" class="runInput" placeholder="Ask ${esc(chatbotName)} anything..." rows="1">${esc(state.customQuestion)}</textarea>
+          <button class="sendButton runSendButton" data-run-custom aria-label="Run question">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3.5 20.5 21 12 3.5 3.5 6.25 10.9 14 12l-7.75 1.1-2.75 7.4Z"></path></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderRunEmptyState(chatbotName) {
+  return `
+    <div class="runEmptyState">
+      <span class="runHalo">${esc(shortCode(chatbotName))}</span>
+      <h2>What should ${esc(chatbotName)} answer?</h2>
+      <p>Ask a workbook question or type your own prompt. The execution trace will show orchestration, evidence retrieval, sub-agent work, and final response grounding.</p>
+    </div>
+  `;
+}
+
+function renderRunConversation(chatbotName) {
+  return `
+    <div class="runConversation">
+      <article class="runBubbleRow user">
+        <div class="runBubble user">${esc(state.run.question)}</div>
+      </article>
+      <article class="runBubbleRow agent">
+        <span class="chatAvatar">${esc(shortCode(chatbotName))}</span>
+        <div>
+          <div class="runBubble agent">
+            ${state.run.response ? esc(state.run.response) : `<span class="thinkingDots"><i></i><i></i><i></i></span><span>Thinking through the agent flow...</span>`}
+          </div>
+          ${state.run.response ? renderReasoning() : ""}
+        </div>
+      </article>
+    </div>
+  `;
+}
+
+function recommendedQuestionsForTyping() {
+  const query = state.customQuestion.trim().toLowerCase();
+  if (!query) return [];
+  const questions = questionsFor();
+  const matches = questions
+    .filter((q) => q.Question.toLowerCase().includes(query) || query.split(/\s+/).some((word) => word.length > 2 && q.Question.toLowerCase().includes(word)))
+    .slice(0, 3);
+  return matches.length ? matches : questions.slice(0, 3);
+}
+
+function renderTypingRecommendations() {
+  const matches = recommendedQuestionsForTyping();
+  if (!matches.length) return "";
+  return `
+    <div class="typingCard">
+      <strong>Recommended questions</strong>
+      ${matches.map((q) => `<button class="typingSuggestion" type="button" data-run-question="${esc(q.QnAID)}">${esc(q.Question)}</button>`).join("")}
+    </div>
+  `;
+}
+
+function renderAgentThinkingPanel() {
+  const status = state.run.running ? "Thinking" : state.run.response ? "Complete" : "Waiting";
+  const statusClass = state.run.running ? "amber" : state.run.response ? "green" : "";
+  const summary = state.run.running ? "Tracing live orchestration" : state.run.response ? `Completed in ${state.run.durationMs} ms` : "Ask a question to start";
+  return `
+    <aside class="agentThinkingPanel" aria-label="Agent execution trace">
+      <header class="thinkingHeader">
+        <div>
+          <span>Execution Trace</span>
+          <strong>${esc(status)}</strong>
+          <small>${esc(summary)}</small>
+        </div>
+        <b class="pill ${statusClass}">${esc(status)}</b>
+      </header>
+      ${renderThinkingTimeline()}
+      ${renderThinkingAgents()}
+      ${renderThinkingSources()}
+    </aside>
+  `;
+}
+
+function runStageStatus(stage) {
+  const current = state.run.running ? visualStepFromElapsed(runElapsed()) : state.run.currentStep;
+  if (!state.run.question) return "";
+  if (current > stage || state.run.response) return "done";
+  if (current === stage) return "active";
+  return "";
+}
+
+function renderThinkingTimeline() {
+  const steps = [
+    { stage: 0, label: "Receive question", detail: "Capture user intent and selected persona" },
+    { stage: 1, label: "AI Orchestrator", detail: "Classify the request and dispatch work" },
+    { stage: 2, label: "Evidence retrieval", detail: "Select mapped workbook knowledge sources" },
+    { stage: 3, label: "Agent workers", detail: "Run independent sub-agents" },
+    { stage: 4, label: "Final answer", detail: "Ground and return the response" },
+  ];
+  return `
+    <section class="thinkingBlock">
+      <h3>Orchestration</h3>
+      <div class="thinkingTimeline">
+        ${steps.map((step, index) => `
+          <div class="thinkingStep ${runStageStatus(step.stage)}">
+            <span>${index + 1}</span>
+            <div><strong>${esc(step.label)}</strong><small>${esc(step.detail)}</small></div>
+          </div>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderThinkingAgents() {
+  const nodes = blueprintNodes().filter((node) => !["user", "source", "response"].includes(node.id)).slice(0, 4);
+  return `
+    <section class="thinkingBlock">
+      <h3>Sub-agents</h3>
+      <div class="thinkingAgentList">
+        ${nodes.map((node, index) => {
+          const status = subAgentStatus(3, index, nodes.length);
+          return `
+            <div class="thinkingAgent ${esc(status.cardClass)}">
+              <span class="agentAvatar">${uiIcon(agentIconName(node.label), "agentIcon")}</span>
+              <div><strong>${esc(node.label)} Agent</strong><small>${esc(status.phase)}</small></div>
+              <b class="agentStatus ${esc(status.className)}">${esc(status.label)}</b>
+            </div>
+          `;
+        }).join("") || `<div class="empty miniEmpty">No sub-agents mapped.</div>`}
+      </div>
+    </section>
+  `;
+}
+
+function renderThinkingSources() {
+  const sources = selectedSources();
+  return `
+    <section class="thinkingBlock">
+      <h3>Evidence</h3>
+      <div class="thinkingSourceList">
+        ${sources.map((source) => `
+          <div class="thinkingSource ${runStageStatus(2)}">
+            <span class="bpIcon">${esc(shortCode(source.KnowledgeSource))}</span>
+            <div><strong>${esc(source.KnowledgeSource)}</strong><small>${esc(source.Channel || source.SourceType || "Workbook source")}</small></div>
+          </div>
+        `).join("") || `<div class="empty miniEmpty">No sources selected.</div>`}
+      </div>
     </section>
   `;
 }
@@ -649,8 +851,43 @@ function uiIcon(name, className = "buttonIcon") {
     list: `<path d="M8 6h13"></path><path d="M8 12h13"></path><path d="M8 18h13"></path><path d="M3 6h.01"></path><path d="M3 12h.01"></path><path d="M3 18h.01"></path>`,
     bot: `<rect x="5" y="8" width="14" height="10" rx="3"></rect><path d="M12 8V4"></path><circle cx="9" cy="13" r="1"></circle><circle cx="15" cy="13" r="1"></circle><path d="M9 18v2"></path><path d="M15 18v2"></path>`,
     database: `<ellipse cx="12" cy="5" rx="7" ry="3"></ellipse><path d="M5 5v6c0 1.66 3.13 3 7 3s7-1.34 7-3V5"></path><path d="M5 11v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6"></path>`,
+    search: `<circle cx="10.5" cy="10.5" r="5.5"></circle><path d="m15 15 5 5"></path>`,
+    vector: `<circle cx="6" cy="7" r="2"></circle><circle cx="18" cy="7" r="2"></circle><circle cx="12" cy="17" r="2"></circle><path d="M8 8.5 11 15"></path><path d="m16 8.5-3 6.5"></path><path d="M8 7h8"></path>`,
+    brain: `<path d="M9 4.5a3 3 0 0 0-3 3v.2A3.5 3.5 0 0 0 4 11a3.4 3.4 0 0 0 2 3.1V16a3 3 0 0 0 5 2.2V5.8A3 3 0 0 0 9 4.5Z"></path><path d="M15 4.5a3 3 0 0 1 3 3v.2a3.5 3.5 0 0 1 2 3.3 3.4 3.4 0 0 1-2 3.1V16a3 3 0 0 1-5 2.2V5.8a3 3 0 0 1 2-1.3Z"></path>`,
+    fileText: `<path d="M6 3h8l4 4v14H6z"></path><path d="M14 3v5h5"></path><path d="M8.5 12h7"></path><path d="M8.5 16h7"></path>`,
+    scan: `<path d="M4 8V5a1 1 0 0 1 1-1h3"></path><path d="M16 4h3a1 1 0 0 1 1 1v3"></path><path d="M20 16v3a1 1 0 0 1-1 1h-3"></path><path d="M8 20H5a1 1 0 0 1-1-1v-3"></path><path d="M7 12h10"></path>`,
+    code: `<path d="m9 8-4 4 4 4"></path><path d="m15 8 4 4-4 4"></path><path d="m13 5-2 14"></path>`,
+    chart: `<path d="M4 19V5"></path><path d="M4 19h16"></path><rect x="7" y="11" width="3" height="5" rx=".7"></rect><rect x="12" y="8" width="3" height="8" rx=".7"></rect><rect x="17" y="6" width="3" height="10" rx=".7"></rect>`,
+    mic: `<rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><path d="M12 18v3"></path>`,
+    video: `<rect x="4" y="6" width="11" height="12" rx="2"></rect><path d="m15 10 5-3v10l-5-3z"></path>`,
+    tag: `<path d="M20 13 13 20 4 11V4h7l9 9Z"></path><circle cx="8.5" cy="8.5" r="1.2"></circle>`,
   };
   return `<span class="${esc(className)}" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false">${icons[name] || icons.download}</svg></span>`;
+}
+
+function oracleWordmark() {
+  return `
+    <svg viewBox="0 0 132 24" role="img" focusable="false" aria-label="Oracle">
+      <text x="66" y="17" text-anchor="middle">ORACLE</text>
+    </svg>
+  `;
+}
+
+function agentIconName(label = "") {
+  const value = label.toLowerCase();
+  if (value.includes("retriev") || value.includes("search")) return "search";
+  if (value.includes("vector")) return "vector";
+  if (value.includes("genai") || value.includes("llm") || value.includes("reason")) return "brain";
+  if (value.includes("upload")) return "upload";
+  if (value.includes("ocr") || value.includes("vision")) return "scan";
+  if (value.includes("understanding") || value.includes("document")) return "fileText";
+  if (value.includes("sql") || value.includes("query")) return "code";
+  if (value.includes("database")) return "database";
+  if (value.includes("result") || value.includes("insight") || value.includes("analysis")) return "chart";
+  if (value.includes("audio") || value.includes("speech")) return "mic";
+  if (value.includes("video")) return "video";
+  if (value.includes("classif") || value.includes("risk") || value.includes("intent")) return "tag";
+  return "bot";
 }
 
 function renderBlueprintPane(blueprint) {
@@ -793,28 +1030,17 @@ function renderWorkerBranch(node, stage) {
   const steps = subAgentStepClasses(status.progress);
   return `
     <div class="subAgentCard ${esc(status.cardClass)}" style="--agent-progress: ${status.progress}%">
-      <div class="subAgentTop">
-        <span class="agentAvatar">${uiIcon("bot", "agentIcon")}</span>
-        <span class="oracleAgentMark" aria-label="Oracle agent">${oracleAgentLogo()}</span>
+      <div class="subAgentMain">
+        <span class="agentAvatar">${uiIcon(agentIconName(node.label), "agentIcon")}</span>
+        <span class="subAgentText"><strong>${esc(node.label)} Agent</strong><small>${esc(node.detail)}</small></span>
         <span class="agentStatus ${esc(status.className)}">${esc(status.label)}</span>
       </div>
-      <strong>${esc(node.label)} Agent</strong>
-      <small>${esc(node.detail)}</small>
       <div class="agentSignal">
         <span class="${steps[0]}"></span><span class="${steps[1]}"></span><span class="${steps[2]}"></span>
       </div>
       <div class="agentProgressTrack"><span></span></div>
       <div class="agentPhase">${esc(status.phase)}</div>
     </div>
-  `;
-}
-
-function oracleAgentLogo() {
-  return `
-    <svg viewBox="0 0 92 18" role="img" focusable="false">
-      <rect x="1" y="1" width="90" height="16" rx="8"></rect>
-      <text x="46" y="12.5" text-anchor="middle">ORACLE</text>
-    </svg>
   `;
 }
 
@@ -1524,6 +1750,7 @@ function startRun(qnaId, customQuestion = "") {
   const question = customQuestion || qna?.Question || "";
   if (!question.trim()) return;
   if (runTimer) window.clearInterval(runTimer);
+  state.customQuestion = "";
   state.run = {
     ...emptyRun(),
     running: true,
@@ -2048,8 +2275,22 @@ document.addEventListener("input", (event) => {
   }
   if (event.target.id === "customQuestion") {
     state.customQuestion = event.target.value;
+    updateTypingRecommendations();
   }
 });
+
+document.addEventListener("keydown", (event) => {
+  if (event.target.id === "customQuestion" && event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    startRun("", state.customQuestion.trim());
+  }
+});
+
+function updateTypingRecommendations() {
+  const container = document.querySelector("[data-typing-recommendations]");
+  if (!container) return;
+  container.innerHTML = renderTypingRecommendations();
+}
 
 document.addEventListener("change", (event) => {
   if (event.target.id === "workbookUpload") {

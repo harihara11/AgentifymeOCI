@@ -106,6 +106,29 @@ button {
   gap: 12px;
 }
 
+.oracleLogo {
+  width: 118px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--oracle-red);
+  text-decoration: none;
+}
+
+.oracleLogo svg {
+  width: 118px;
+  height: 28px;
+  display: block;
+}
+
+.oracleLogo text {
+  fill: currentColor;
+  font-family: var(--font);
+  font-size: 18px;
+  font-weight: 950;
+  letter-spacing: 4px;
+}
+
 .settingsButton {
   width: 38px;
   height: 38px;
@@ -1147,20 +1170,6 @@ textarea:disabled {
   font-size: 10px;
 }
 
-.patternCanvas .oracleAgentMark {
-  width: 54px;
-  height: 16px;
-}
-
-.patternCanvas .oracleAgentMark svg {
-  width: 54px;
-  height: 16px;
-}
-
-.patternCanvas .oracleAgentMark text {
-  font-size: 7px;
-}
-
 .patternCanvas .edge {
   height: 9px;
   min-height: 9px;
@@ -1940,44 +1949,18 @@ textarea:disabled {
   background: #fbfff9;
 }
 
-.subAgentTop {
-  display: flex;
+.subAgentTop,
+.subAgentMain {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: flex-start;
   gap: 8px;
 }
 
-.subAgentTop .agentStatus {
-  margin-left: auto;
-}
-
-.oracleAgentMark {
-  width: 68px;
-  height: 20px;
-  flex: 0 0 auto;
-  display: inline-grid;
-  place-items: center;
-  color: var(--oracle-red);
-}
-
-.oracleAgentMark svg {
-  width: 68px;
-  height: 20px;
-  display: block;
-}
-
-.oracleAgentMark rect {
-  fill: #fff6f3;
-  stroke: rgba(199, 70, 52, 0.42);
-  stroke-width: 1.2;
-}
-
-.oracleAgentMark text {
-  fill: currentColor;
-  font-family: var(--font);
-  font-size: 8.5px;
-  font-weight: 950;
-  letter-spacing: 1.25px;
+.subAgentTop .agentStatus,
+.subAgentMain .agentStatus {
+  justify-self: end;
 }
 
 .agentAvatar {
@@ -1988,6 +1971,18 @@ textarea:disabled {
   place-items: center;
   color: var(--oracle-red);
   background: #f7e8e4;
+}
+
+.subAgentText {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.subAgentText strong,
+.subAgentText small {
+  min-width: 0;
+  display: block;
 }
 
 .agentIcon svg {
@@ -2373,22 +2368,10 @@ textarea:disabled {
   display: none;
 }
 
-.branchFlow.horizontal .subAgentTop {
+.branchFlow.horizontal .subAgentTop,
+.branchFlow.horizontal .subAgentMain {
+  grid-template-columns: 22px minmax(0, 1fr) auto;
   gap: 5px;
-}
-
-.branchFlow.horizontal .oracleAgentMark {
-  width: 44px;
-  height: 16px;
-}
-
-.branchFlow.horizontal .oracleAgentMark svg {
-  width: 44px;
-  height: 16px;
-}
-
-.branchFlow.horizontal .oracleAgentMark text {
-  font-size: 6.5px;
 }
 
 .branchFlow.horizontal .agentStatus {
@@ -2814,6 +2797,491 @@ textarea:disabled {
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+}
+
+.agentRunPage {
+  height: calc(100vh - 154px);
+  max-height: calc(100vh - 154px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+  overflow: hidden;
+  padding: 12px 20px 10px;
+}
+
+.runTopLine {
+  min-height: 46px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.runAgentTitle {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.runAgentTitle h1 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.runAgentTitle small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.runTopActions {
+  justify-content: flex-end;
+}
+
+.agentRunWorkspace {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.agentChatSurface,
+.agentThinkingPanel {
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(28, 24, 20, 0.08);
+}
+
+.agentChatSurface {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  background:
+    radial-gradient(#e8e1da 1px, transparent 1px),
+    linear-gradient(180deg, #ffffff, #faf8f5);
+  background-size: 28px 28px, 100% 100%;
+}
+
+.agentChatBody {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  align-items: center;
+  padding: 22px clamp(28px, 5vw, 78px) 10px;
+}
+
+.runEmptyState {
+  width: min(720px, 100%);
+  margin: 0 auto;
+  text-align: center;
+}
+
+.runHalo {
+  width: 46px;
+  height: 46px;
+  margin: 0 auto 14px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(180deg, var(--oracle-red), var(--red-dark));
+  box-shadow: 0 12px 28px rgba(199, 70, 52, 0.2);
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.runEmptyState h2 {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 760;
+  letter-spacing: 0;
+}
+
+.runEmptyState p {
+  max-width: 620px;
+  margin: 10px auto 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.runConversation {
+  width: min(820px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 14px;
+  align-self: start;
+}
+
+.runBubbleRow {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.runBubbleRow.user {
+  justify-content: flex-end;
+}
+
+.runBubble {
+  max-width: min(720px, 78%);
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.42;
+  white-space: pre-line;
+}
+
+.runBubble.user {
+  color: #fff;
+  background: var(--oracle-red);
+  box-shadow: 0 10px 24px rgba(199, 70, 52, 0.16);
+}
+
+.runBubble.agent {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+}
+
+.thinkingDots {
+  display: inline-flex;
+  gap: 4px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.thinkingDots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  display: block;
+  background: var(--oracle-red);
+  animation: dotThink 1s ease-in-out infinite;
+}
+
+.thinkingDots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.thinkingDots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes dotThink {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+.runSuggested {
+  padding: 0 clamp(28px, 5vw, 78px) 10px;
+}
+
+.runSuggested .suggestedTitle {
+  width: min(820px, 100%);
+  margin: 0 auto 7px;
+}
+
+.runQuestionStrip {
+  width: min(820px, 100%);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.runQuestion {
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid rgba(199, 70, 52, 0.5);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--red-dark);
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.18;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.runQuestion:hover,
+.typingSuggestion:hover {
+  border-color: var(--oracle-red);
+  background: #fff7f4;
+}
+
+.runComposerWrap {
+  padding: 0 clamp(28px, 5vw, 78px) 16px;
+}
+
+.typingRecommendations {
+  width: min(820px, 100%);
+  min-height: 0;
+  margin: 0 auto 8px;
+}
+
+.typingCard {
+  display: grid;
+  gap: 6px;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 10px 24px rgba(28, 24, 20, 0.08);
+}
+
+.typingCard strong {
+  color: var(--oracle-red);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.typingSuggestion {
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: #fbfaf8;
+  color: #433d37;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.runComposer {
+  width: min(820px, 100%);
+  min-height: 58px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 40px;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid #d2cbc4;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(28, 24, 20, 0.12);
+}
+
+.composerIconButton {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #5f5750;
+  background: #f4f0eb;
+  font-size: 24px;
+  line-height: 1;
+  cursor: default;
+}
+
+.runInput {
+  width: 100%;
+  min-height: 34px;
+  max-height: 82px;
+  border: 0;
+  outline: 0;
+  resize: none;
+  color: var(--ink);
+  background: transparent;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.runInput::placeholder {
+  color: #8b837b;
+}
+
+.runSendButton {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+}
+
+.agentThinkingPanel {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 6px;
+  padding: 10px;
+  background: linear-gradient(180deg, #fff, #fbfaf8);
+}
+
+.thinkingHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--line);
+}
+
+.thinkingHeader span,
+.thinkingBlock h3 {
+  color: var(--oracle-red);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.thinkingHeader strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 18px;
+}
+
+.thinkingHeader small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.thinkingBlock {
+  min-height: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.thinkingBlock h3 {
+  margin: 0;
+}
+
+.thinkingTimeline,
+.thinkingAgentList,
+.thinkingSourceList {
+  min-height: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.thinkingAgentList {
+  overflow: hidden;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.thinkingStep,
+.thinkingAgent,
+.thinkingSource {
+  min-width: 0;
+  display: grid;
+  align-items: center;
+  gap: 7px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.thinkingStep {
+  grid-template-columns: 22px minmax(0, 1fr);
+}
+
+.thinkingStep > span {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #6f655d;
+  background: #eee8e2;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.thinkingStep.active {
+  border-color: rgba(199, 70, 52, 0.58);
+  background: #fff8f5;
+}
+
+.thinkingStep.active > span {
+  color: #fff;
+  background: var(--oracle-red);
+  animation: agentPulse 0.9s ease-in-out infinite;
+}
+
+.thinkingStep.done,
+.thinkingAgent.done,
+.thinkingSource.done {
+  border-color: rgba(46, 125, 50, 0.42);
+  background: #f5fbf3;
+}
+
+.thinkingStep.done > span {
+  color: #fff;
+  background: var(--green);
+}
+
+.thinkingStep strong,
+.thinkingStep small,
+.thinkingAgent strong,
+.thinkingAgent small,
+.thinkingSource strong,
+.thinkingSource small {
+  min-width: 0;
+  display: block;
+}
+
+.thinkingStep strong,
+.thinkingAgent strong,
+.thinkingSource strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.thinkingStep small,
+.thinkingAgent small,
+.thinkingSource small {
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.thinkingAgent {
+  grid-template-columns: 24px minmax(0, 1fr);
+  padding: 6px;
+}
+
+.thinkingAgent .agentStatus {
+  display: none;
+}
+
+.thinkingAgent.active {
+  border-color: rgba(199, 70, 52, 0.55);
+  background: #fff8f5;
+}
+
+.thinkingSource {
+  grid-template-columns: 24px minmax(0, 1fr);
+  padding: 6px;
+}
+
+.thinkingSource .bpIcon {
+  width: 24px;
+  height: 24px;
+  font-size: 8px;
 }
 
 .bubble {
