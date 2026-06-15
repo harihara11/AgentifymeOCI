@@ -23,6 +23,7 @@ const state = {
   customQuestion: "",
   traceOpen: false,
   sourceRailOpen: false,
+  flowOrientation: "horizontal",
   run: emptyRun(),
   uploadedContent: [],
   leaderboard: readLeaderboard(),
@@ -558,7 +559,10 @@ function renderPatternConfigurator() {
             <strong>${esc(patternById()?.PatternName || "Selected capability")}</strong>
             <small>${esc(blueprint?.BlueprintTheme || "Workbook mapped architecture")}</small>
           </div>
-          <span class="pill red">${esc(patternById()?.PatternName || "Capability")}</span>
+          <div class="patternPreviewActions">
+            ${renderFlowOrientationToggle()}
+            <span class="pill red">${esc(patternById()?.PatternName || "Capability")}</span>
+          </div>
         </div>
         <div class="patternCanvas">
           ${renderBranchedBlueprint()}
@@ -660,6 +664,7 @@ function renderBlueprintPane(blueprint) {
           </div>
           <div class="canvasActions">
             ${renderSourceRailButton()}
+            ${renderFlowOrientationToggle()}
             <span class="pill red">${esc(patternById()?.PatternName)}</span>
           </div>
         </div>
@@ -679,6 +684,15 @@ function renderSourceRailButton() {
     <button class="canvasToolButton" type="button" data-source-rail-toggle aria-expanded="${state.sourceRailOpen ? "true" : "false"}">
       ${uiIcon("database", "iconBox")}<span>Sources</span><b>${count}</b>
     </button>
+  `;
+}
+
+function renderFlowOrientationToggle() {
+  return `
+    <div class="flowToggle" role="group" aria-label="Blueprint layout">
+      <button type="button" class="${state.flowOrientation === "horizontal" ? "active" : ""}" data-flow-orientation="horizontal" aria-pressed="${state.flowOrientation === "horizontal" ? "true" : "false"}">Horizontal</button>
+      <button type="button" class="${state.flowOrientation === "vertical" ? "active" : ""}" data-flow-orientation="vertical" aria-pressed="${state.flowOrientation === "vertical" ? "true" : "false"}">Vertical</button>
+    </div>
   `;
 }
 
@@ -713,12 +727,12 @@ function renderBranchedBlueprint() {
   const workerNodes = nodes.filter((node) => !["user", "source", "response"].includes(node.id));
   const sources = selectedSources();
   return `
-    <div class="branchFlow">
+    <div class="branchFlow ${esc(state.flowOrientation)}">
       ${renderFlowNode(userNode, 0)}
       ${renderFlowConnector(0)}
       ${renderFlowNode({ label: "AI Orchestrator", detail: "Classifies intent and dispatches selected branches" }, 1, "orchestrator")}
       ${renderFlowConnector(1)}
-      ${renderSourceConstellation(sources.slice(0, 4), 2)}
+      ${renderSourceConstellation(sources, 2)}
       ${renderFlowConnector(2)}
       ${renderAgentWorkerSwarm(workerNodes.slice(0, 4), 3)}
       ${renderFlowConnector(3)}
@@ -761,8 +775,9 @@ function sourceVisualStatus(stage) {
 }
 
 function renderSourceConstellation(sources, stage) {
+  const sourceCount = Math.max(1, sources.length);
   return `
-    <div class="sourceConstellation ${flowStageClass(stage)}">
+    <div class="sourceConstellation ${flowStageClass(stage)}" style="--source-count: ${sourceCount}">
       <div class="branchGroupTitle">Evidence retrieval</div>
       <div class="sourceChipGrid">
         ${sources.map((source) => renderSourceBranch(source, stage)).join("") || `<div class="empty miniEmpty">No workbook items selected</div>`}
@@ -1874,6 +1889,7 @@ function resetAfterWorkbook() {
   state.downloadPayload = null;
   state.traceOpen = false;
   state.sourceRailOpen = false;
+  state.flowOrientation = "horizontal";
   state.run = emptyRun();
   state.screen = "persona";
   render();
@@ -1901,6 +1917,11 @@ document.addEventListener("click", (event) => {
   if (target.dataset.traceToggle !== undefined) {
     event.preventDefault();
     state.traceOpen = !state.traceOpen;
+    return render();
+  }
+  if (target.dataset.flowOrientation) {
+    event.preventDefault();
+    state.flowOrientation = target.dataset.flowOrientation === "vertical" ? "vertical" : "horizontal";
     return render();
   }
   if (target.dataset.docClose !== undefined) {
@@ -2014,6 +2035,7 @@ function resetExperience() {
   state.customQuestion = "";
   state.traceOpen = false;
   state.sourceRailOpen = false;
+  state.flowOrientation = "horizontal";
   state.run = emptyRun();
 }
 

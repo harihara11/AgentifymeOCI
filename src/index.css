@@ -990,6 +990,12 @@ textarea:disabled {
   border-bottom: 1px solid var(--line);
 }
 
+.patternPreviewActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .patternPanelHead span,
 .patternPreviewHead span:not(.pill),
 .patternPreviewHead small,
@@ -1075,6 +1081,15 @@ textarea:disabled {
   padding-top: 0;
 }
 
+.patternCanvas .branchFlow.horizontal {
+  grid-template-columns: minmax(116px, 0.75fr) 16px minmax(134px, 0.85fr) 16px minmax(210px, 1.35fr) 16px minmax(300px, 1.75fr) 16px minmax(116px, 0.75fr);
+  grid-template-rows: minmax(0, 1fr);
+  align-items: center;
+  align-content: center;
+  justify-content: stretch;
+  gap: 4px;
+}
+
 .patternCanvas .sourceConstellation {
   min-height: 44px;
   padding: 5px 8px;
@@ -1151,6 +1166,13 @@ textarea:disabled {
   min-height: 9px;
 }
 
+.patternCanvas .branchFlow.horizontal .edge {
+  width: 100%;
+  min-width: 16px;
+  height: 26px;
+  min-height: 26px;
+}
+
 .patternCanvas .bpNode {
   min-height: 30px;
   padding: 5px 7px;
@@ -1166,7 +1188,7 @@ textarea:disabled {
 }
 
 .patternCanvas .sourceChipGrid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--source-count, 4), minmax(0, 1fr));
   justify-content: stretch;
 }
 
@@ -1182,6 +1204,26 @@ textarea:disabled {
 
 .patternCanvas .branchCard small {
   font-size: 8px;
+}
+
+.patternCanvas .branchFlow.horizontal .sourceConstellation {
+  width: 100%;
+  min-height: 170px;
+  align-content: start;
+}
+
+.patternCanvas .branchFlow.horizontal .sourceChipGrid {
+  grid-template-columns: 1fr;
+}
+
+.patternCanvas .branchFlow.horizontal .agentSwarm {
+  width: 100%;
+  min-height: 170px;
+}
+
+.patternCanvas .branchFlow.horizontal .subAgentGrid,
+.patternCanvas .branchFlow.horizontal .agentSwarm.agentCount4 .subAgentGrid {
+  grid-template-columns: 1fr;
 }
 
 .choiceKicker {
@@ -1452,6 +1494,34 @@ textarea:disabled {
   background: #fff8f5;
 }
 
+.flowToggle {
+  min-height: 32px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: #fff;
+}
+
+.flowToggle button {
+  min-height: 24px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: #514a44;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.flowToggle button.active {
+  color: #fff;
+  background: var(--oracle-red);
+  box-shadow: 0 4px 10px rgba(199, 70, 52, 0.18);
+}
+
 .canvasToolButton b {
   min-width: 22px;
   height: 22px;
@@ -1632,7 +1702,7 @@ textarea:disabled {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--source-count, 4), minmax(0, 1fr));
   justify-content: stretch;
   gap: 4px;
 }
@@ -2178,6 +2248,166 @@ textarea:disabled {
   line-height: 1.25;
 }
 
+.blueprintPage .branchFlow.horizontal {
+  grid-template-columns: minmax(118px, 0.95fr) 12px minmax(168px, 1.18fr) 12px minmax(232px, 1.4fr) 12px minmax(232px, 1.4fr) 12px minmax(118px, 0.95fr);
+  grid-template-rows: minmax(0, 1fr);
+  align-items: center;
+  align-content: center;
+  justify-content: stretch;
+  gap: 3px;
+}
+
+.branchFlow.horizontal .flowNode {
+  width: 100%;
+}
+
+.branchFlow.horizontal .bpNode,
+.branchFlow.horizontal .sourceConstellation,
+.branchFlow.horizontal .agentSwarm,
+.branchFlow.horizontal .branchCard,
+.branchFlow.horizontal .subAgentCard {
+  min-width: 0;
+}
+
+.branchFlow.horizontal .bpNode > span,
+.branchFlow.horizontal .branchCard > span {
+  min-width: 0;
+}
+
+.blueprintPage .branchFlow.horizontal .bpNode {
+  min-height: 82px;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 8px;
+  padding: 10px;
+}
+
+.blueprintPage .branchFlow.horizontal .bpIcon {
+  width: 32px;
+  height: 32px;
+}
+
+.branchFlow.horizontal .bpNode strong {
+  font-size: 12px;
+}
+
+.branchFlow.horizontal .bpNode small {
+  font-size: 10px;
+  line-height: 1.18;
+}
+
+.branchFlow.horizontal .sourceConstellation {
+  width: 100%;
+  min-height: 196px;
+  align-content: start;
+  padding: 8px;
+}
+
+.branchFlow.horizontal .sourceChipGrid {
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+
+.branchFlow.horizontal .sourceConstellation .branchCard {
+  min-height: 32px;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 3px;
+  padding: 4px;
+}
+
+.branchFlow.horizontal .sourceConstellation .bpIcon {
+  width: 18px;
+  height: 18px;
+  font-size: 7px;
+}
+
+.branchFlow.horizontal .sourceConstellation .branchCard strong {
+  font-size: 9px;
+}
+
+.branchFlow.horizontal .sourceConstellation .branchCard small {
+  font-size: 7px;
+}
+
+.branchFlow.horizontal .agentSwarm {
+  width: 100%;
+  min-height: 218px;
+  padding: 8px;
+}
+
+.branchFlow.horizontal .agentSwarmHead {
+  gap: 6px;
+}
+
+.branchFlow.horizontal .agentSwarmHead span {
+  font-size: 8px;
+  letter-spacing: 0.045em;
+  line-height: 1;
+}
+
+.branchFlow.horizontal .agentSwarmHead strong {
+  font-size: 11px;
+  line-height: 1.12;
+}
+
+.branchFlow.horizontal .agentSwarmHead b {
+  padding: 4px 7px;
+  font-size: 10px;
+}
+
+.branchFlow.horizontal .subAgentGrid,
+.branchFlow.horizontal .agentSwarm.agentCount4 .subAgentGrid {
+  grid-template-columns: 1fr;
+  gap: 5px;
+}
+
+.branchFlow.horizontal .subAgentCard,
+.branchFlow.horizontal .agentSwarm.agentCount4 .subAgentCard {
+  min-height: 42px;
+  padding: 6px 8px;
+  gap: 3px;
+}
+
+.branchFlow.horizontal .agentSignal,
+.branchFlow.horizontal .agentProgressTrack,
+.branchFlow.horizontal .agentPhase {
+  display: none;
+}
+
+.branchFlow.horizontal .subAgentTop {
+  gap: 5px;
+}
+
+.branchFlow.horizontal .oracleAgentMark {
+  width: 44px;
+  height: 16px;
+}
+
+.branchFlow.horizontal .oracleAgentMark svg {
+  width: 44px;
+  height: 16px;
+}
+
+.branchFlow.horizontal .oracleAgentMark text {
+  font-size: 6.5px;
+}
+
+.branchFlow.horizontal .agentStatus {
+  padding: 2px 5px;
+  font-size: 8px;
+}
+
+.branchFlow.horizontal .subAgentCard strong,
+.branchFlow.horizontal .agentSwarm.agentCount4 .subAgentCard strong {
+  font-size: 10px;
+}
+
+.branchFlow.horizontal .subAgentCard small,
+.branchFlow.horizontal .agentSwarm.agentCount4 .subAgentCard small {
+  font-size: 8px;
+  line-height: 1.2;
+  -webkit-line-clamp: 1;
+}
+
 .edge {
   width: 34px;
   height: 30px;
@@ -2190,6 +2420,15 @@ textarea:disabled {
 .blueprintPage .edge {
   height: 22px;
   min-height: 22px;
+}
+
+.branchFlow.horizontal .edge,
+.blueprintPage .branchFlow.horizontal .edge,
+.patternCanvas .branchFlow.horizontal .edge {
+  width: 100%;
+  min-width: 16px;
+  height: 26px;
+  min-height: 26px;
 }
 
 .edge.active {
@@ -2209,6 +2448,16 @@ textarea:disabled {
   transform: translateX(-50%);
 }
 
+.branchFlow.horizontal .edge::before {
+  top: 50%;
+  bottom: auto;
+  left: 0;
+  right: 6px;
+  width: auto;
+  height: 3px;
+  transform: translateY(-50%);
+}
+
 .flowConnector span {
   position: absolute;
   top: -1px;
@@ -2220,6 +2469,12 @@ textarea:disabled {
   box-shadow: 0 0 0 5px rgba(46, 125, 50, 0.14);
   opacity: 0;
   transform: translateX(-50%);
+}
+
+.branchFlow.horizontal .flowConnector span {
+  top: 50%;
+  left: -1px;
+  transform: translateY(-50%);
 }
 
 .flowConnector.live span {
@@ -2238,6 +2493,70 @@ textarea:disabled {
   border-bottom: 3px solid currentColor;
   color: inherit;
   transform: translateX(-50%) rotate(45deg);
+}
+
+.branchFlow.horizontal .edge::after {
+  left: auto;
+  right: 1px;
+  bottom: auto;
+  top: 50%;
+  transform: translateY(-50%) rotate(-45deg);
+}
+
+.patternCanvas .branchFlow.horizontal {
+  grid-template-columns: minmax(92px, 0.82fr) 12px minmax(130px, 1.05fr) 12px minmax(216px, 1.38fr) 12px minmax(216px, 1.38fr) 12px minmax(92px, 0.82fr);
+  gap: 3px;
+}
+
+.patternCanvas .branchFlow.horizontal .bpNode {
+  min-height: 30px;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 6px;
+  padding: 5px 7px;
+}
+
+.patternCanvas .branchFlow.horizontal .bpIcon {
+  width: 24px;
+  height: 24px;
+}
+
+.patternCanvas .branchFlow.horizontal .sourceConstellation {
+  min-height: 170px;
+  padding: 7px;
+}
+
+.patternCanvas .branchFlow.horizontal .sourceChipGrid {
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+
+.patternCanvas .branchFlow.horizontal .sourceConstellation .branchCard {
+  min-height: 28px;
+  grid-template-columns: 22px minmax(0, 1fr);
+  padding: 3px 6px;
+}
+
+.patternCanvas .branchFlow.horizontal .agentSwarm {
+  min-height: 170px;
+  padding: 7px;
+}
+
+.patternCanvas .branchFlow.horizontal .subAgentGrid,
+.patternCanvas .branchFlow.horizontal .agentSwarm.agentCount4 .subAgentGrid {
+  grid-template-columns: 1fr;
+  gap: 5px;
+}
+
+.patternCanvas .branchFlow.horizontal .subAgentCard,
+.patternCanvas .branchFlow.horizontal .agentSwarm.agentCount4 .subAgentCard {
+  min-height: 35px;
+  padding: 6px;
+  gap: 3px;
+}
+
+.patternCanvas .branchFlow.horizontal .edge {
+  height: 24px;
+  min-height: 24px;
 }
 
 .runtime {
