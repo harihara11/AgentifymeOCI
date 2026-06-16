@@ -756,6 +756,7 @@ textarea:disabled {
 
 .buttonIcon svg,
 .iconBox svg,
+.bpSemanticIcon svg,
 .traceCloseIcon svg {
   width: 18px;
   height: 18px;
@@ -1480,6 +1481,19 @@ textarea:disabled {
   width: 29px;
   height: 29px;
   display: block;
+}
+
+.sourceLogoBadge {
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: #fff;
+  color: inherit;
+  overflow: visible;
+}
+
+.sourceLogoBadge .sourceBrandIcon {
+  width: 78%;
+  height: 78%;
 }
 
 .sourceSelectControl {
@@ -2411,10 +2425,29 @@ textarea:disabled {
   font-weight: 950;
 }
 
+.bpSemanticIconWrap {
+  font-size: 0;
+}
+
+.bpSemanticIcon {
+  display: inline-grid;
+  place-items: center;
+  color: currentColor;
+}
+
+.bpSemanticIcon svg {
+  width: 20px;
+  height: 20px;
+}
+
 .blueprintPage .bpIcon {
   width: 26px;
   height: 26px;
   font-size: 9px;
+}
+
+.blueprintPage .sourceLogoBadge {
+  border-radius: 50%;
 }
 
 .bpNode strong,

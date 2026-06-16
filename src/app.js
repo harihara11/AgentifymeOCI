@@ -825,7 +825,7 @@ function renderThinkingSources() {
       <div class="thinkingSourceList">
         ${sources.map((source) => `
           <div class="thinkingSource ${runStageStatus(2)}">
-            <span class="bpIcon">${esc(shortCode(source.KnowledgeSource))}</span>
+            ${sourceLogoBadge(source, "bpIcon sourceLogoBadge")}
             <div><strong>${esc(source.KnowledgeSource)}</strong><small>${esc(source.Channel || source.SourceType || "Workbook source")}</small></div>
           </div>
         `).join("") || `<div class="empty miniEmpty">No sources selected.</div>`}
@@ -885,46 +885,56 @@ function sourceConnectorIcon(source) {
   const kind = sourceIconKind(source);
   const icons = {
     outlook: `
-      <svg class="sourceBrandIcon outlookIcon" viewBox="0 0 32 32" aria-hidden="true">
-        <rect x="12" y="7" width="15" height="18" rx="3" fill="#2b78d4"></rect>
-        <path d="M14 11h11v11H14z" fill="#54a3ff"></path>
-        <path d="M14 13l5.5 4.3L25 13v9H14z" fill="#fff" opacity=".94"></path>
-        <rect x="5" y="10" width="13" height="13" rx="2.5" fill="#0f5fb8"></rect>
-        <circle cx="11.5" cy="16.5" r="3.1" fill="none" stroke="#fff" stroke-width="1.8"></circle>
+      <svg class="sourceBrandIcon outlookIcon" viewBox="0 0 48 48" aria-hidden="true">
+        <path d="M30.932 9.343 7.976 23.894 6.002 20.78v-2.684c0-.977.494-1.888 1.314-2.42l13.345-8.659a6.14 6.14 0 0 1 6.685 0z" fill="#20a7fa"></path>
+        <path d="m27.14 6.89 10.62 6.882L11.938 30.14l-3.963-6.25 18.951-12.037c1.795-1.14 1.874-3.704.214-4.964" fill="#1880e5"></path>
+        <path d="M22.24 33.266 11.938 30.14l21.904-13.885c1.845-1.17 1.84-3.863-.009-5.026l6.852 4.439A2.89 2.89 0 0 1 42 18.09v2.598z" fill="#2052cb"></path>
+        <path d="M21.051 42.004h14.697a6.25 6.25 0 0 0 6.25-6.25V18.143c0 1.02-.524 1.968-1.388 2.51L18.75 34.38a4.05 4.05 0 0 0-1.895 3.427 4.197 4.197 0 0 0 4.196 4.197" fill="#0fafff"></path>
+        <path d="M27.027 42.002H12.249A6.25 6.25 0 0 1 6 35.752V18.13c0 1.018.523 1.965 1.384 2.508l21.839 13.768a4.115 4.115 0 0 1-2.195 7.596" fill="#29c3ff"></path>
+        <rect x="4" y="23" width="16" height="16" rx="3.25" fill="#183dad"></rect>
+        <path d="M11.96 35.6q-1.99 0-3.26-1.24-1.27-1.24-1.27-3.24 0-2.11 1.29-3.42 1.29-1.3 3.39-1.3 1.98 0 3.22 1.25 1.25 1.25 1.25 3.29 0 2.1-1.3 3.38-1.28 1.28-3.32 1.28m.04-1.76q1.08 0 1.74-.74.66-.74.66-2.05 0-1.37-.64-2.14-.64-.76-1.71-.76-1.1 0-1.77.79-.67.78-.67 2.07 0 1.31.67 2.07.67.76 1.72.76" fill="#fff"></path>
       </svg>`,
     sharepoint: `
       <svg class="sourceBrandIcon sharepointIcon" viewBox="0 0 32 32" aria-hidden="true">
-        <circle cx="19" cy="11" r="6" fill="#37b5aa"></circle>
-        <circle cx="22" cy="20" r="7" fill="#168f8a"></circle>
-        <circle cx="12" cy="17" r="8" fill="#0f6f78"></circle>
-        <text x="12" y="20.5" text-anchor="middle" fill="#fff" font-size="11" font-weight="900">S</text>
+        <circle cx="15" cy="9.5" fill="#036c70" r="9.5"></circle>
+        <circle cx="23.875" cy="17.875" fill="#1a9ba1" r="8.125"></circle>
+        <circle cx="16" cy="25.5" fill="#37c6d0" r="6.5"></circle>
+        <path d="M1.333 8h13.334A1.333 1.333 0 0 1 16 9.333v13.334A1.333 1.333 0 0 1 14.667 24H1.333A1.333 1.333 0 0 1 0 22.667V9.333A1.333 1.333 0 0 1 1.333 8z" fill="#03787c"></path>
+        <path d="M5.67 15.825a2.645 2.645 0 0 1-.822-.87 2.361 2.361 0 0 1-.287-1.19 2.29 2.29 0 0 1 .533-1.541A3.142 3.142 0 0 1 6.51 11.3a5.982 5.982 0 0 1 1.935-.3 7.354 7.354 0 0 1 2.549.357v1.8a3.986 3.986 0 0 0-1.153-.471 5.596 5.596 0 0 0-1.349-.162 2.926 2.926 0 0 0-1.386.293.91.91 0 0 0-.549.833.844.844 0 0 0 .233.59 2.122 2.122 0 0 0 .627.448q.394.196 1.176.52a9.697 9.697 0 0 1 1.652.799 2.654 2.654 0 0 1 .877.883 2.558 2.558 0 0 1 .317 1.332 2.48 2.48 0 0 1-.499 1.605 2.789 2.789 0 0 1-1.335.896A6.049 6.049 0 0 1 7.703 21a10.028 10.028 0 0 1-1.722-.142 5.912 5.912 0 0 1-1.4-.404v-1.902a4.5 4.5 0 0 0 1.416.675 5.513 5.513 0 0 0 1.558.25 2.68 2.68 0 0 0 1.413-.3.947.947 0 0 0 .475-.847.904.904 0 0 0-.266-.648 2.704 2.704 0 0 0-.735-.512q-.469-.236-1.386-.62a7.86 7.86 0 0 1-1.386-.725z" fill="#fff"></path>
       </svg>`,
     slack: `
-      <svg class="sourceBrandIcon slackIcon" viewBox="0 0 32 32" aria-hidden="true">
-        <rect x="14" y="4" width="4" height="11" rx="2" fill="#36c5f0"></rect>
-        <rect x="14" y="17" width="4" height="11" rx="2" fill="#2eb67d"></rect>
-        <rect x="17" y="14" width="11" height="4" rx="2" fill="#ecb22e"></rect>
-        <rect x="4" y="14" width="11" height="4" rx="2" fill="#e01e5a"></rect>
-        <circle cx="16" cy="16" r="2.4" fill="#fff"></circle>
+      <svg class="sourceBrandIcon slackIcon" viewBox="0 0 2447.6 2452.5" aria-hidden="true">
+        <path d="m897.4 0c-135.3.1-244.8 109.9-244.7 245.2-.1 135.3 109.5 245.1 244.8 245.2h244.8v-245.1c.1-135.3-109.5-245.1-244.9-245.3m0 654h-652.6c-135.3.1-244.9 109.9-244.8 245.2-.2 135.3 109.4 245.1 244.7 245.3h652.7c135.3-.1 244.9-109.9 244.8-245.2.1-135.4-109.5-245.2-244.8-245.3z" fill="#36c5f0"></path>
+        <path d="m2447.6 899.2c.1-135.3-109.5-245.1-244.8-245.2-135.3.1-244.9 109.9-244.8 245.2v245.3h244.8c135.3-.1 244.9-109.9 244.8-245.3zm-652.7 0v-654c.1-135.2-109.4-245-244.7-245.2-135.3.1-244.9 109.9-244.8 245.2v654c-.2 135.3 109.4 245.1 244.7 245.3 135.3-.1 244.9-109.9 244.8-245.3z" fill="#2eb67d"></path>
+        <path d="m1550.1 2452.5c135.3-.1 244.9-109.9 244.8-245.2.1-135.3-109.5-245.1-244.8-245.2h-244.8v245.2c-.1 135.2 109.5 245 244.8 245.2zm0-654.1h652.7c135.3-.1 244.9-109.9 244.8-245.2.2-135.3-109.4-245.1-244.7-245.3h-652.7c-135.3.1-244.9 109.9-244.8 245.2-.1 135.4 109.4 245.2 244.7 245.3z" fill="#ecb22e"></path>
+        <path d="m0 1553.2c-.1 135.3 109.5 245.1 244.8 245.2 135.3-.1 244.9-109.9 244.8-245.2v-245.2h-244.8c-135.3.1-244.9 109.9-244.8 245.2zm652.7 0v654c-.2 135.3 109.4 245.1 244.7 245.3 135.3-.1 244.9-109.9 244.8-245.2v-653.9c.2-135.3-109.4-245.1-244.7-245.3-135.4 0-244.9 109.8-244.8 245.1" fill="#e01e5a"></path>
       </svg>`,
     jira: `
-      <svg class="sourceBrandIcon jiraIcon" viewBox="0 0 32 32" aria-hidden="true">
-        <path d="M16 4 28 16 16 28 4 16 16 4Z" fill="#7b3fc7"></path>
-        <path d="M16 9 23 16 16 23 9 16 16 9Z" fill="#fff" opacity=".86"></path>
-        <path d="M16 12.5 19.5 16 16 19.5 12.5 16 16 12.5Z" fill="#7b3fc7"></path>
+      <svg class="sourceBrandIcon jiraIcon" viewBox="0 0 255.324 255.324" aria-hidden="true">
+        <path d="M244.658 0H121.707a55.502 55.502 0 0 0 55.502 55.502h22.649V77.37c.02 30.625 24.841 55.447 55.466 55.467V10.666C255.324 4.777 250.55 0 244.658 0z" fill="#2684ff"></path>
+        <path d="M183.822 61.262H60.872c.019 30.625 24.84 55.447 55.466 55.467h22.649v21.938c.039 30.625 24.877 55.43 55.502 55.43V71.93c0-5.891-4.776-10.667-10.667-10.667z" fill="#0052cc"></path>
+        <path d="M122.951 122.489H0c0 30.653 24.85 55.502 55.502 55.502h22.72v21.867c.02 30.597 24.798 55.408 55.396 55.466V133.156c0-5.891-4.776-10.667-10.667-10.667z" fill="#2684ff"></path>
       </svg>`,
     docs: `
-      <svg class="sourceBrandIcon docsIcon" viewBox="0 0 32 32" aria-hidden="true">
-        <path d="M9 4h10l5 5v19H9z" fill="#4285f4"></path>
-        <path d="M19 4v6h6" fill="#a8c7fa"></path>
-        <path d="M12 15h9M12 19h9M12 23h7" stroke="#fff" stroke-width="1.7" stroke-linecap="round"></path>
+      <svg class="sourceBrandIcon docsIcon" viewBox="0 0 1818.2 2500" aria-hidden="true">
+        <path d="M1136.4 0H170.4C79.6 0 0 79.5 0 170.5v2159.1c0 90.9 79.5 170.5 170.5 170.5h1477.3c90.9 0 170.5-79.5 170.5-170.5V681.8l-397.7-284.1z" fill="#4285f4"></path>
+        <path d="M454.5 1818.2h909.1v-113.6H454.6zm0 227.3h681.8v-113.6H454.5zM454.5 1250v113.6h909.1V1250zm0 340.9h909.1v-113.6H454.6z" fill="#f1f1f1"></path>
+        <path d="M1136.4 0v511.4c0 90.9 79.5 170.4 170.4 170.4h511.4z" fill="#a1c2fa"></path>
+      </svg>`,
+    pdf: `
+      <svg class="sourceBrandIcon pdfIcon" viewBox="0 0 48 48" aria-hidden="true">
+        <path fill="#e53935" d="M38 42H10c-2.2 0-4-1.8-4-4V10c0-2.2 1.8-4 4-4h28c2.2 0 4 1.8 4 4v28c0 2.2-1.8 4-4 4z"></path>
+        <path fill="#fff" d="M34.8 26.8c-1.7-1.8-6.3-1-7.4-.9-1.6-1.6-2.7-3.5-3.1-4.1.6-1.8 1-3.5 1-5.4 0-1.6-.7-3.4-2.5-3.4-1.9 0-2 2.3-2 3.2.1 1.3.5 3 1.2 4.6-.7 2-1.4 4-3.2 7.4-1.2.5-3.2 1.4-4.6 2.5-1.1.8-2.4 2.2-1 3.7 1.1 1.1 2.8.5 4-.4 1.5-1.2 2.9-3.3 4-5.2 1.4-.5 3.5-1.1 5.7-1.5 2.5 2.2 4.8 2.5 5.9 2.5 1.6 0 2.1-.7 2.3-1.2.4-.5.2-1.3-.3-1.8zM33.2 27.9c-.1.5-.7.9-1.7.7-1.2-.3-2.3-.9-3.3-1.7.8-.1 2.7-.3 4.1-.1.5.2 1.1.5.9 1.1zM22.9 14.2c.6 0 .7.7.7 1.3-.1 1.4-.3 2.7-.8 4-.6-1.7-.8-3.1-.7-4 0-.4.2-1.3.8-1.3zM22.2 27.2c.5-1 1.2-2.9 1.5-3.6.6 1 1.6 2.1 2.1 2.7 0-.1-2 .3-3.6.9zM18.4 29.8c-3.1 5-4.2 4-4.3 3.9-.2-.2-1.3-1.4 4.3-3.9z"></path>
       </svg>`,
     excel: `
       <svg class="sourceBrandIcon excelIcon" viewBox="0 0 32 32" aria-hidden="true">
-        <rect x="10" y="5" width="17" height="22" rx="2.5" fill="#21a366"></rect>
-        <path d="M14 9h10M14 14h10M14 19h10M14 24h10M19 9v15" stroke="#fff" stroke-width="1.2" opacity=".75"></path>
-        <rect x="5" y="10" width="12" height="13" rx="2" fill="#107c41"></rect>
-        <path d="m8.3 13.5 5 6M13.3 13.5l-5 6" stroke="#fff" stroke-width="1.8" stroke-linecap="round"></path>
+        <path d="M20 2H9.333A1.333 1.333 0 0 0 8 3.333V9l12 7 6 2.532L32 16V9z" fill="#21a366"></path>
+        <path fill="#107c41" d="M8 9h12v7H8z"></path>
+        <path d="M30.667 2H20v7h12V3.333A1.333 1.333 0 0 0 30.667 2z" fill="#33c481"></path>
+        <path d="M20 16H8v12.667A1.333 1.333 0 0 0 9.333 30h21.334A1.333 1.333 0 0 0 32 28.667V23z" fill="#185c37"></path>
+        <path fill="#107c41" d="M20 16h12v7H20z"></path>
+        <path d="M1.333 8h13.334A1.333 1.333 0 0 1 16 9.333v13.334A1.333 1.333 0 0 1 14.667 24H1.333A1.333 1.333 0 0 1 0 22.667V9.333A1.333 1.333 0 0 1 1.333 8z" fill="#107c41"></path>
+        <path d="m3.533 21 3.236-5.014L3.805 11H6.19l1.618 3.187q.223.453.307.676h.021q.16-.362.335-.704L10.2 11h2.189l-3.04 4.958L12.466 21h-2.33l-1.869-3.5a2.922 2.922 0 0 1-.223-.468h-.028a2.207 2.207 0 0 1-.216.453L5.877 21z" fill="#fff"></path>
       </svg>`,
     audio: `
       <svg class="sourceBrandIcon audioIcon" viewBox="0 0 32 32" aria-hidden="true">
@@ -947,6 +957,10 @@ function sourceConnectorIcon(source) {
   return icons[kind] || icons.docs;
 }
 
+function sourceLogoBadge(source, className = "sourceLogoBadge") {
+  return `<span class="${esc(className)}" aria-hidden="true">${sourceConnectorIcon(source)}</span>`;
+}
+
 function sourceIconKind(source) {
   const name = text(source.KnowledgeSource).toLowerCase();
   const type = text(source.SourceType).toLowerCase();
@@ -960,7 +974,8 @@ function sourceIconKind(source) {
   if (primary.includes("audio") || primary.includes("voice") || primary.includes("recording")) return "audio";
   if (primary.includes("video") || primary.includes("cctv") || primary.includes("drone")) return "video";
   if (primary.includes("database") || primary.includes("sql")) return "database";
-  if (primary.includes("pdf") || primary.includes("doc") || primary.includes("contract") || primary.includes("policy") || primary.includes("sop")) return "docs";
+  if (primary.includes("pdf")) return "pdf";
+  if (primary.includes("doc") || primary.includes("contract") || primary.includes("policy") || primary.includes("sop")) return "docs";
   if (channel.includes("slack")) return "slack";
   if (channel.includes("email")) return "outlook";
   if (channel.includes("csv")) return "excel";
@@ -991,6 +1006,8 @@ function redwoodEyeIcon() {
 function uiIcon(name, className = "buttonIcon") {
   const icons = {
     settings: `<path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"></path><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.04.04a2.06 2.06 0 0 1-2.91 2.91l-.04-.04A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .56V20a2 2 0 0 1-4 0v-.06a1.7 1.7 0 0 0-1-.56 1.7 1.7 0 0 0-1.88.34l-.04.04a2.06 2.06 0 0 1-2.91-2.91l.04-.04A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.56-1H4a2 2 0 0 1 0-4h.06a1.7 1.7 0 0 0 .56-1 1.7 1.7 0 0 0-.34-1.88l-.04-.04a2.06 2.06 0 0 1 2.91-2.91l.04.04A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.56V4a2 2 0 0 1 4 0v.06a1.7 1.7 0 0 0 1 .56 1.7 1.7 0 0 0 1.88-.34l.04-.04a2.06 2.06 0 0 1 2.91 2.91l-.04.04A1.7 1.7 0 0 0 19.4 9c.2.34.38.68.56 1H20a2 2 0 0 1 0 4h-.06a1.7 1.7 0 0 0-.56 1Z"></path>`,
+    user: `<circle cx="12" cy="8" r="4"></circle><path d="M4.5 21a7.5 7.5 0 0 1 15 0"></path>`,
+    message: `<path d="M5 6.5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9l-5 3v-13a2 2 0 0 1 2-2Z"></path><path d="M8 11h8"></path><path d="M8 14.5h5"></path>`,
     download: `<path d="M12 3v11"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path>`,
     award: `<circle cx="12" cy="8" r="5"></circle><path d="m8.5 12.5-1 7 4.5-2.5 4.5 2.5-1-7"></path>`,
     close: `<path d="M6 6l12 12"></path><path d="M18 6 6 18"></path>`,
@@ -1138,17 +1155,25 @@ function flowStageClass(stage) {
 function renderFlowNode(node, stage, extraClass = "") {
   return `
     <div class="bpNode flowNode ${extraClass} ${flowStageClass(stage)}">
-      <span class="bpIcon">${esc(shortCode(node.label))}</span>
+      <span class="bpIcon bpSemanticIconWrap">${uiIcon(flowNodeIconName(node, extraClass), "bpSemanticIcon")}</span>
       <span><strong>${esc(node.label)}</strong><small>${esc(node.detail)}</small></span>
     </div>
   `;
+}
+
+function flowNodeIconName(node, extraClass = "") {
+  const label = text(node.label).toLowerCase();
+  if (extraClass === "orchestrator") return "bot";
+  if (extraClass === "response" || node.id === "response" || label.includes("response") || label.includes("answer")) return "message";
+  if (node.id === "user" || label === "user") return "user";
+  return agentIconName(node.label);
 }
 
 function renderSourceBranch(source, stage) {
   const status = sourceVisualStatus(stage);
   return `
     <div class="branchCard sourceBranch ${flowStageClass(stage)}">
-      <span class="bpIcon">${esc(shortCode(source.KnowledgeSource))}</span>
+      ${sourceLogoBadge(source, "bpIcon sourceLogoBadge")}
       <span><strong>${esc(source.KnowledgeSource)}</strong><small>${esc(status || source.Channel || source.SourceType || "Workbook source")}</small></span>
     </div>
   `;
@@ -1286,7 +1311,7 @@ function renderBlueprintNode(node, index, total) {
   const edgeActive = current > index;
   return `
     <div class="bpNode ${active ? "active" : ""} ${done ? "done" : ""}">
-      <span class="bpIcon">${esc(shortCode(node.label))}</span>
+      <span class="bpIcon bpSemanticIconWrap">${uiIcon(agentIconName(node.label), "bpSemanticIcon")}</span>
       <span><strong>${esc(node.label)}</strong><small>${esc(node.detail)}</small></span>
     </div>
     ${index < total - 1 ? `<div class="edge ${edgeActive ? "active" : ""}"></div>` : ""}
@@ -2156,9 +2181,7 @@ function downloadPng(data, fileName) {
     ctx.fillStyle = "#c74634";
     roundRect(ctx, 270, y + 17, 42, 42, 8);
     ctx.fill();
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 12px Arial";
-    ctx.fillText(shortCode(node.label), 280, y + 44);
+    drawCanvasNodeIcon(ctx, flowNodeIconName(node), 291, y + 38);
     ctx.fillStyle = "#171412";
     ctx.font = "bold 17px Arial";
     ctx.fillText(node.label, 330, y + 33);
@@ -2190,6 +2213,177 @@ function downloadPng(data, fileName) {
   link.href = url;
   link.download = fileName;
   link.click();
+}
+
+function drawCanvasNodeIcon(ctx, iconName, cx, cy) {
+  const drawCircle = (x, y, radius, fill = false) => {
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    fill ? ctx.fill() : ctx.stroke();
+  };
+  const drawRoundedRect = (x, y, width, height, radius) => {
+    roundRect(ctx, x, y, width, height, radius);
+    ctx.stroke();
+  };
+  ctx.save();
+  ctx.strokeStyle = "#ffffff";
+  ctx.fillStyle = "#ffffff";
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  switch (iconName) {
+    case "user":
+      drawCircle(cx, cy - 6, 4);
+      ctx.beginPath();
+      ctx.arc(cx, cy + 9, 8, Math.PI * 1.05, Math.PI * 1.95);
+      ctx.stroke();
+      break;
+    case "message":
+      drawRoundedRect(cx - 10, cy - 8, 20, 14, 3);
+      ctx.beginPath();
+      ctx.moveTo(cx - 4, cy + 6);
+      ctx.lineTo(cx - 9, cy + 11);
+      ctx.lineTo(cx - 8, cy + 5);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx - 5, cy - 2);
+      ctx.lineTo(cx + 6, cy - 2);
+      ctx.moveTo(cx - 5, cy + 3);
+      ctx.lineTo(cx + 3, cy + 3);
+      ctx.stroke();
+      break;
+    case "search":
+      drawCircle(cx - 2, cy - 2, 7);
+      ctx.beginPath();
+      ctx.moveTo(cx + 4, cy + 4);
+      ctx.lineTo(cx + 10, cy + 10);
+      ctx.stroke();
+      break;
+    case "database":
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - 8, 9, 4, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx - 9, cy - 8);
+      ctx.lineTo(cx - 9, cy + 7);
+      ctx.ellipse(cx, cy + 7, 9, 4, 0, 0, Math.PI);
+      ctx.moveTo(cx + 9, cy - 8);
+      ctx.lineTo(cx + 9, cy + 7);
+      ctx.moveTo(cx - 9, cy - 1);
+      ctx.ellipse(cx, cy - 1, 9, 4, 0, 0, Math.PI);
+      ctx.stroke();
+      break;
+    case "code":
+      ctx.beginPath();
+      ctx.moveTo(cx - 4, cy - 8);
+      ctx.lineTo(cx - 10, cy);
+      ctx.lineTo(cx - 4, cy + 8);
+      ctx.moveTo(cx + 4, cy - 8);
+      ctx.lineTo(cx + 10, cy);
+      ctx.lineTo(cx + 4, cy + 8);
+      ctx.stroke();
+      break;
+    case "fileText":
+    case "scan":
+      ctx.beginPath();
+      ctx.moveTo(cx - 7, cy - 10);
+      ctx.lineTo(cx + 3, cy - 10);
+      ctx.lineTo(cx + 9, cy - 4);
+      ctx.lineTo(cx + 9, cy + 10);
+      ctx.lineTo(cx - 7, cy + 10);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx + 3, cy - 10);
+      ctx.lineTo(cx + 3, cy - 4);
+      ctx.lineTo(cx + 9, cy - 4);
+      ctx.moveTo(cx - 3, cy);
+      ctx.lineTo(cx + 4, cy);
+      ctx.moveTo(cx - 3, cy + 5);
+      ctx.lineTo(cx + 4, cy + 5);
+      ctx.stroke();
+      break;
+    case "chart":
+      ctx.beginPath();
+      ctx.moveTo(cx - 10, cy + 9);
+      ctx.lineTo(cx + 10, cy + 9);
+      ctx.moveTo(cx - 8, cy + 9);
+      ctx.lineTo(cx - 8, cy + 2);
+      ctx.moveTo(cx, cy + 9);
+      ctx.lineTo(cx, cy - 7);
+      ctx.moveTo(cx + 8, cy + 9);
+      ctx.lineTo(cx + 8, cy - 1);
+      ctx.stroke();
+      break;
+    case "mic":
+      drawRoundedRect(cx - 4, cy - 10, 8, 14, 4);
+      ctx.beginPath();
+      ctx.arc(cx, cy - 1, 9, 0, Math.PI);
+      ctx.moveTo(cx, cy + 8);
+      ctx.lineTo(cx, cy + 12);
+      ctx.stroke();
+      break;
+    case "video":
+      drawRoundedRect(cx - 10, cy - 7, 14, 14, 3);
+      ctx.beginPath();
+      ctx.moveTo(cx + 4, cy - 3);
+      ctx.lineTo(cx + 11, cy - 7);
+      ctx.lineTo(cx + 11, cy + 7);
+      ctx.lineTo(cx + 4, cy + 3);
+      ctx.stroke();
+      break;
+    case "tag":
+      ctx.beginPath();
+      ctx.moveTo(cx + 9, cy);
+      ctx.lineTo(cx, cy + 9);
+      ctx.lineTo(cx - 10, cy - 1);
+      ctx.lineTo(cx - 10, cy - 9);
+      ctx.lineTo(cx - 2, cy - 9);
+      ctx.closePath();
+      ctx.stroke();
+      drawCircle(cx - 6, cy - 5, 1.4, true);
+      break;
+    case "vector":
+      drawCircle(cx - 8, cy - 7, 3);
+      drawCircle(cx + 8, cy - 7, 3);
+      drawCircle(cx, cy + 9, 3);
+      ctx.beginPath();
+      ctx.moveTo(cx - 5, cy - 6);
+      ctx.lineTo(cx + 5, cy - 6);
+      ctx.moveTo(cx - 7, cy - 4);
+      ctx.lineTo(cx - 2, cy + 7);
+      ctx.moveTo(cx + 7, cy - 4);
+      ctx.lineTo(cx + 2, cy + 7);
+      ctx.stroke();
+      break;
+    case "upload":
+      ctx.beginPath();
+      ctx.moveTo(cx, cy + 8);
+      ctx.lineTo(cx, cy - 9);
+      ctx.moveTo(cx - 6, cy - 3);
+      ctx.lineTo(cx, cy - 9);
+      ctx.lineTo(cx + 6, cy - 3);
+      ctx.moveTo(cx - 9, cy + 11);
+      ctx.lineTo(cx + 9, cy + 11);
+      ctx.stroke();
+      break;
+    case "brain":
+    case "bot":
+    default:
+      drawRoundedRect(cx - 10, cy - 7, 20, 14, 5);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 7);
+      ctx.lineTo(cx, cy - 12);
+      ctx.stroke();
+      drawCircle(cx - 5, cy - 1, 1.5, true);
+      drawCircle(cx + 5, cy - 1, 1.5, true);
+      ctx.beginPath();
+      ctx.moveTo(cx - 4, cy + 4);
+      ctx.lineTo(cx + 4, cy + 4);
+      ctx.stroke();
+      break;
+  }
+  ctx.restore();
 }
 
 function roundRect(ctx, x, y, width, height, radius) {
