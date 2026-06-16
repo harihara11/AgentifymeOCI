@@ -478,7 +478,7 @@ function renderRegister() {
     <section class="page">
       <section class="panel pad registerCard">
         <div class="eyebrow">Step 1 - Register</div>
-        <h1>Build your Digital co-worker with OCI AI Factory</h1>
+        <h1>Build your Digital co-worker with OCI AI</h1>
         <div class="registerForm">
           <div class="field">
             <label class="label" for="nameInput">Participant name</label>
