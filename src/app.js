@@ -38,6 +38,27 @@ const stepLabels = {
   leaderboard: ["Complete", "Leaderboard + download"],
 };
 
+const personaPatternRules = {
+  P01: {
+    allowed: ["AP01", "AP02", "AP03"],
+    AP01: ["Enterprise search", "Search your HR SharePoint and Email"],
+    AP02: ["Task-oriented conversational assistance", "Query your HCM SaaS/ERP System About Employee Information"],
+    AP03: ["Interpretation and narrative around documents", "Employee Contract Document"],
+  },
+  P02: {
+    allowed: ["AP01", "AP02", "AP03"],
+    AP01: ["Enterprise search", "Search your Finance SharePoint, policies, and Email"],
+    AP02: ["Task-oriented conversational assistance", "Query your ERP system about finance cost, payroll, and budget information"],
+    AP03: ["Interpretation and narrative around documents", "Invoice, purchase order, and vendor contract documents"],
+  },
+  P03: {
+    allowed: ["AP01", "AP02", "AP04"],
+    AP01: ["Enterprise search", "Search your call center knowledge base, SOPs, and customer emails"],
+    AP02: ["Task-oriented conversational assistance", "Query your support operations system about staffing, queues, and quality"],
+    AP04: ["Voice and media intelligence", "Analyze call recordings, transcripts, and customer sentiment"],
+  },
+};
+
 function clone(value) {
   return JSON.parse(JSON.stringify(value || {}));
 }
@@ -90,6 +111,12 @@ function patterns() {
   return sheet("03_Agent_Patterns");
 }
 
+function visiblePatterns() {
+  const allowed = personaPatternRules[state.personaId]?.allowed;
+  if (!allowed) return patterns();
+  return patterns().filter((row) => allowed.includes(row.PatternID));
+}
+
 function knowledgeSources() {
   return sheet("04_Knowledge_Sources");
 }
@@ -100,6 +127,15 @@ function personaById(id = state.personaId) {
 
 function patternById(id = state.patternId) {
   return patterns().find((row) => row.PatternID === id) || null;
+}
+
+function patternDisplay(pattern = patternById()) {
+  if (!pattern) return { name: "", description: "" };
+  const display = personaPatternRules[state.personaId]?.[pattern.PatternID];
+  return {
+    name: display?.[0] || pattern.PatternName,
+    description: display?.[1] || pattern.Description,
+  };
 }
 
 function sourceById(id) {
@@ -223,7 +259,7 @@ function ensureDefaults(resetKnowledge = false) {
   state.experience = "Engineer";
   state.experienceSelected = true;
   const context = `${state.personaId}|${state.patternId}|${state.experience}`;
-  if (state.patternId && (resetKnowledge || state.knowledgeContext !== context || !state.selectedKnowledgeIds.length)) {
+  if (state.patternId && (resetKnowledge || state.knowledgeContext !== context)) {
     state.selectedKnowledgeIds = defaultSourceIds();
     state.knowledgeContext = context;
   }
@@ -505,8 +541,8 @@ function renderPattern() {
           <h1>What your agent should do ?</h1>
         </div>
       </div>
-      <div class="grid four capabilityGrid">
-        ${patterns().map((pattern) => renderPatternCard(pattern)).join("")}
+      <div class="grid three capabilityGrid">
+        ${visiblePatterns().map((pattern) => renderPatternCard(pattern)).join("")}
       </div>
       ${state.patternId ? renderPatternConfigurator() : renderPatternEmptyPreview()}
       ${renderRouteActions("Run Agent", "&rarr;")}
@@ -516,11 +552,12 @@ function renderPattern() {
 
 function renderPatternCard(pattern) {
   const selected = state.patternId === pattern.PatternID;
+  const display = patternDisplay(pattern);
   return `
     <button class="choice ${selected ? "selected" : ""}" data-pattern="${esc(pattern.PatternID)}">
       <span class="check" aria-hidden="true">${selected ? "✓" : ""}</span>
-      <h3>${esc(pattern.PatternName)}</h3>
-      <p>${esc(pattern.Description)}</p>
+      <h3>${esc(display.name)}</h3>
+      <p>${esc(display.description)}</p>
     </button>
   `;
 }
@@ -818,13 +855,19 @@ function renderKnowledgePane() {
 }
 
 function renderSourceRow(source, selected, editable) {
+  const sourceName = esc(source.KnowledgeSource);
+  const toggleLabel = `${selected ? "Deselect" : "Select"} ${source.KnowledgeSource}`;
   return `
-    <article class="sourceRow ${selected ? "selected" : "disabled"}">
-      <h4>${esc(source.KnowledgeSource)}</h4>
+    <article class="sourceRow ${selected ? "selected" : "disabled"}" aria-label="${sourceName} ${selected ? "selected" : "not selected"}">
+      ${editable ? `
+        <button class="sourceSelectControl ${selected ? "checked" : ""}" type="button" data-source-toggle="${esc(source.KnowledgeID)}" aria-pressed="${selected ? "true" : "false"}" aria-label="${esc(toggleLabel)}">
+          <span aria-hidden="true">${selected ? "✓" : ""}</span>
+        </button>
+      ` : `<span class="sourceSelectControl ${selected ? "checked" : ""}" aria-hidden="true"><span>${selected ? "✓" : ""}</span></span>`}
+      <h4>${sourceName}</h4>
       <div class="sourceActions">
-        ${editable && !selected ? `<button class="sourceIconButton" data-source-toggle="${esc(source.KnowledgeID)}" aria-label="Add ${esc(source.KnowledgeSource)}">+</button>` : ""}
-        ${editable && selected ? `<button class="sourceIconButton" data-source-toggle="${esc(source.KnowledgeID)}" aria-label="Remove ${esc(source.KnowledgeSource)}">-</button>` : ""}
-        <button class="sourceIconButton" data-source-view="${esc(source.KnowledgeID)}" aria-label="View ${esc(source.KnowledgeSource)}">${redwoodEyeIcon()}</button>
+        ${selected ? `<span class="sourceSelectedPill">Selected</span>` : ""}
+        <button class="sourceIconButton" data-source-view="${esc(source.KnowledgeID)}" aria-label="View ${sourceName}">${redwoodEyeIcon()}</button>
       </div>
     </article>
   `;

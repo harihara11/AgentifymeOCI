@@ -1380,8 +1380,8 @@ textarea:disabled {
 
 .sourceRow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
   align-items: center;
   min-height: 44px;
   padding: 9px 10px;
@@ -1390,9 +1390,16 @@ textarea:disabled {
   background: #fff;
 }
 
+.sourceRow.selected {
+  border-color: rgba(199, 70, 52, 0.48);
+  background: #fff8f5;
+  box-shadow: inset 3px 0 0 var(--oracle-red);
+}
+
 .sourceRow h4 {
   min-width: 0;
   display: -webkit-box;
+  margin: 0;
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -1404,10 +1411,51 @@ textarea:disabled {
   background: #f6f3ef;
 }
 
+.sourceSelectControl {
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  background: #fff;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sourceSelectControl.checked {
+  border-color: var(--oracle-red);
+  background: var(--oracle-red);
+  box-shadow: 0 0 0 2px rgba(199, 70, 52, 0.12);
+}
+
+.sourceSelectControl:hover {
+  border-color: var(--oracle-red);
+}
+
 .sourceActions {
   display: flex;
   gap: 5px;
   align-items: center;
+}
+
+.sourceSelectedPill {
+  height: 24px;
+  border: 1px solid rgba(199, 70, 52, 0.32);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  background: #fff;
+  color: var(--oracle-red);
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .sourceIconButton {
