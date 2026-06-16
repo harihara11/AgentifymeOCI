@@ -113,24 +113,24 @@ def blueprint_templates() -> dict[str, list[dict[str, str]]]:
             {"id": "user", "label": "User", "detail": "Persona question and task intent"},
             {"id": "source", "label": "Knowledge Source", "detail": "Selected workbook mapped content"},
             {"id": "retriever", "label": "Retriever", "detail": "Semantic search and source ranking"},
-            {"id": "vector", "label": "Vector Store", "detail": "OCI vector index and grounding"},
+            {"id": "vector", "label": "Knowledge Processing", "detail": "Chunking, embeddings, and vector retrieval"},
             {"id": "genai", "label": "Oracle GenAI", "detail": "Grounded generation and policy controls"},
             {"id": "response", "label": "Response", "detail": "Answer with trace and source evidence"},
         ],
-        "NLSQL": [
+        "NL2SQL": [
             {"id": "user", "label": "User", "detail": "Natural language business question"},
-            {"id": "nlq", "label": "Natural Language Query", "detail": "Intent, metric and dimension extraction"},
-            {"id": "sql", "label": "SQL Generator", "detail": "Validated SQL plan"},
-            {"id": "database", "label": "Database", "detail": "Oracle Database query execution"},
-            {"id": "results", "label": "Results", "detail": "Aggregated and checked result set"},
+            {"id": "intent", "label": "Intent", "detail": "Intent, metrics and dimensions"},
+            {"id": "metadata", "label": "Metadata", "detail": "Vectorized schema and business context retrieval"},
+            {"id": "sql", "label": "SQL", "detail": "Validated SQL generation"},
+            {"id": "results", "label": "Results", "detail": "Checked and formatted results"},
             {"id": "response", "label": "Response", "detail": "Business answer and supporting metrics"},
         ],
         "Document AI": [
             {"id": "user", "label": "User", "detail": "Document request or uploaded file"},
-            {"id": "upload", "label": "Document Upload", "detail": "Workbook mapped document intake"},
-            {"id": "ocr", "label": "OCR", "detail": "Text and layout extraction"},
-            {"id": "understanding", "label": "Document Understanding", "detail": "Entity, table and clause detection"},
-            {"id": "llm", "label": "LLM", "detail": "Reasoning with extracted evidence"},
+            {"id": "classification", "label": "Classification", "detail": "Document type identification"},
+            {"id": "extraction", "label": "Extraction", "detail": "Schema, fields and clauses"},
+            {"id": "validation", "label": "Validation", "detail": "Business rules and compliance checks"},
+            {"id": "inference", "label": "Inference", "detail": "Insights, reasoning and recommendations"},
             {"id": "response", "label": "Response", "detail": "Summary, fields and next action"},
         ],
         "Cognitive": [
@@ -152,7 +152,7 @@ def runtime_templates() -> dict[str, list[str]]:
             "Ground the answer with Oracle GenAI and source constraints.",
             "Return a response with cited source categories and execution trace.",
         ],
-        "NLSQL": [
+        "NL2SQL": [
             "Resolve requested metrics, filters, and time window.",
             "Generate validated SQL against the workbook mapped dataset.",
             "Execute the query and inspect result shape.",

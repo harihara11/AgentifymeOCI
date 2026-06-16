@@ -7,11 +7,14 @@ let runTimer = null;
 
 const state = {
   screen: "register",
-  name: "Harry",
+  name: "",
+  registerError: false,
   personaId: "",
+  personaError: false,
   experience: "Engineer",
   experienceSelected: true,
   workerName: "",
+  workerNameError: false,
   patternId: "",
   selectedKnowledgeIds: [],
   knowledgeContext: "",
@@ -20,10 +23,15 @@ const state = {
   settingsOpen: false,
   downloadModalOpen: false,
   downloadPayload: null,
+  benefitsPayload: null,
+  runSuccessOpen: false,
   customQuestion: "",
   traceOpen: false,
   sourceRailOpen: false,
   flowOrientation: "horizontal",
+  activeQuestionThreadId: "",
+  testedQuestionIds: [],
+  lastSavedRunKey: "",
   run: emptyRun(),
   uploadedContent: [],
   leaderboard: readLeaderboard(),
@@ -150,7 +158,19 @@ function scenarioFor(personaId = state.personaId, patternId = state.patternId) {
   );
 }
 
-function questionsFor(personaId = state.personaId, patternId = state.patternId) {
+function isFollowUpQuestionId(qnaId) {
+  return /F[12]$/.test(text(qnaId));
+}
+
+function rootQuestionId(qnaId) {
+  return text(qnaId).replace(/F[12]$/, "");
+}
+
+function questionById(qnaId) {
+  return sheet("08_Scenario_QnA").find((row) => row.QnAID === qnaId) || null;
+}
+
+function questionRowsFor(personaId = state.personaId, patternId = state.patternId) {
   const scenario = scenarioFor(personaId, patternId);
   if (!scenario) return [];
   const selected = new Set(state.selectedKnowledgeIds);
@@ -158,10 +178,38 @@ function questionsFor(personaId = state.personaId, patternId = state.patternId) 
     .filter((row) => row.ScenarioID === scenario.ScenarioID)
     .sort((a, b) => Number(a.QuestionOrder || 0) - Number(b.QuestionOrder || 0));
   const sourceAware = questions.some((row) => questionSourceIds(row).length);
-  const filtered = sourceAware
+  return sourceAware
     ? questions.filter((row) => questionSourceIds(row).some((id) => selected.has(id)))
     : questions;
-  return filtered.slice(0, 2);
+}
+
+function questionsFor(personaId = state.personaId, patternId = state.patternId) {
+  return questionRowsFor(personaId, patternId)
+    .filter((row) => !isFollowUpQuestionId(row.QnAID))
+    .slice(0, 3);
+}
+
+function followUpQuestionsFor(qnaId = state.activeQuestionThreadId || state.run.qnaId) {
+  const rootId = rootQuestionId(qnaId);
+  if (!rootId) return [];
+  return questionRowsFor()
+    .filter((row) => rootQuestionId(row.QnAID) === rootId && row.QnAID !== rootId)
+    .slice(0, 2);
+}
+
+function questionThreadFor(qnaId = state.activeQuestionThreadId || state.run.qnaId) {
+  const rootId = rootQuestionId(qnaId);
+  if (!rootId) return [];
+  const rootQuestion = questionById(rootId);
+  return [rootQuestion, ...followUpQuestionsFor(rootId)].filter(Boolean);
+}
+
+function runSuggestedQuestions() {
+  if (state.run.question) {
+    const thread = questionThreadFor();
+    if (thread.length > 1) return thread;
+  }
+  return questionsFor();
 }
 
 function responseFor(qnaId) {
@@ -207,6 +255,42 @@ function defaultSourceIds(personaId = state.personaId, patternId = state.pattern
 function selectedSources() {
   const selected = new Set(state.selectedKnowledgeIds);
   return availableSourcesFor().filter((row) => selected.has(row.KnowledgeID));
+}
+
+function runEvidenceSources() {
+  const qna = state.run.qnaId ? questionById(state.run.qnaId) : null;
+  const ids = qna ? questionSourceIds(qna) : [];
+  if (!ids.length) return selectedSources();
+  const required = new Set(ids);
+  return availableSourcesFor().filter((row) => required.has(row.KnowledgeID));
+}
+
+function markQuestionTested(qnaId) {
+  if (!qnaId) return;
+  if (!state.testedQuestionIds.includes(qnaId)) {
+    state.testedQuestionIds = [...state.testedQuestionIds, qnaId];
+  }
+}
+
+function testedQuestionIdsForThread(qnaId = state.activeQuestionThreadId || state.run.qnaId) {
+  return questionThreadFor(qnaId).map((row) => row.QnAID);
+}
+
+function currentQuestionThreadComplete() {
+  const ids = testedQuestionIdsForThread();
+  return ids.length >= 3 && ids.every((id) => state.testedQuestionIds.includes(id));
+}
+
+function resetRunTesting() {
+  if (runTimer) window.clearInterval(runTimer);
+  runTimer = null;
+  state.activeQuestionThreadId = "";
+  state.testedQuestionIds = [];
+  state.runSuccessOpen = false;
+}
+
+function resetSavedRunKey() {
+  state.lastSavedRunKey = "";
 }
 
 function personaGroup(persona = personaById()) {
@@ -255,12 +339,11 @@ function clampPercent(value) {
 function ensureDefaults(resetKnowledge = false) {
   const persona = personaById();
   if (!persona) return;
-  if (!state.workerName) state.workerName = suggestedWorkerNames()[0] || `${persona.PersonaName.replace(/\s+(Specialist|Agent)$/i, "")} Worker`;
   state.experience = "Engineer";
   state.experienceSelected = true;
   const context = `${state.personaId}|${state.patternId}|${state.experience}`;
   if (state.patternId && (resetKnowledge || state.knowledgeContext !== context)) {
-    state.selectedKnowledgeIds = defaultSourceIds();
+    state.selectedKnowledgeIds = [];
     state.knowledgeContext = context;
   }
 }
@@ -308,20 +391,27 @@ function canEnter(screen) {
 
 function go(screen) {
   ensureDefaults();
-  if (!canEnter(screen)) return;
+  if (!canEnter(screen)) {
+    if (screen === "persona" && state.screen === "register") validateRegisterName();
+    if (state.screen === "persona" && stepOrder.indexOf(screen) > stepOrder.indexOf("persona")) validatePersonaStep();
+    return;
+  }
   state.screen = screen;
   render();
 }
 
 function next() {
-  if (state.screen === "register") return go("persona");
+  if (state.screen === "register") {
+    if (!validateRegisterName()) return;
+    return go("persona");
+  }
   if (state.screen === "persona") {
-    if (!state.workerName.trim()) return render();
+    if (!validatePersonaStep()) return;
     ensureDefaults(true);
     return go("pattern");
   }
   if (state.screen === "pattern") return go("blueprint");
-  if (state.screen === "blueprint") return go("leaderboard");
+  if (state.screen === "blueprint") return completeCurrentRun();
   if (state.screen === "leaderboard") {
     resetExperience();
     return render();
@@ -338,8 +428,42 @@ function previous() {
 }
 
 function canMoveNext() {
-  if (state.screen === "persona") return canEnter("pattern");
+  if (state.screen === "persona") return true;
   if (state.screen === "pattern") return canEnter("blueprint");
+  return true;
+}
+
+function validateRegisterName() {
+  const trimmedName = state.name.trim();
+  if (!trimmedName) {
+    state.registerError = true;
+    render();
+    window.requestAnimationFrame(() => {
+      document.getElementById("nameInput")?.focus();
+    });
+    return false;
+  }
+  state.name = trimmedName;
+  state.registerError = false;
+  return true;
+}
+
+function validatePersonaStep() {
+  const hasPersona = Boolean(state.personaId);
+  const trimmedWorkerName = state.workerName.trim();
+  state.personaError = !hasPersona;
+  state.workerNameError = hasPersona && !trimmedWorkerName;
+  if (state.personaError || state.workerNameError) {
+    render();
+    window.requestAnimationFrame(() => {
+      if (state.personaError) document.querySelector("[data-persona]")?.focus();
+      else document.getElementById("workerName")?.focus();
+    });
+    return false;
+  }
+  state.workerName = trimmedWorkerName;
+  state.personaError = false;
+  state.workerNameError = false;
   return true;
 }
 
@@ -474,15 +598,27 @@ function renderScreen() {
 }
 
 function renderRegister() {
+  const hasError = state.registerError && !state.name.trim();
   return `
     <section class="page">
       <section class="panel pad registerCard">
         <div class="eyebrow">Step 1 - Register</div>
         <h1>Build your Digital co-worker with OCI AI</h1>
         <div class="registerForm">
-          <div class="field">
-            <label class="label" for="nameInput">Participant name</label>
-            <input id="nameInput" class="input" value="${esc(state.name)}" placeholder="Enter your name" autocomplete="off" />
+          <div class="field ${hasError ? "fieldInvalid" : ""}">
+            <label class="label" for="nameInput">Nick name</label>
+            <input
+              id="nameInput"
+              class="input"
+              value="${esc(state.name)}"
+              placeholder="Enter your nick name"
+              autocomplete="off"
+              aria-invalid="${hasError ? "true" : "false"}"
+              aria-describedby="nameInputMessage"
+            />
+            <p id="nameInputMessage" class="fieldMessage" aria-live="polite">
+              ${hasError ? "Please enter your nick name to continue." : ""}
+            </p>
           </div>
           <div class="btnRow" style="margin-top: 14px">
             <button class="action primary" data-route-next>Start</button>
@@ -495,23 +631,41 @@ function renderRegister() {
 
 function renderPersona() {
   const suggestions = suggestedWorkerNames();
+  const personaError = state.personaError && !state.personaId;
+  const workerNameError = state.workerNameError && state.personaId && !state.workerName.trim();
   return `
     <section class="page journeyPanel">
       <div class="pageHead">
         <div>
           <div class="eyebrow">Persona Selection</div>
-          <h1>Select a persona and name your digital worker</h1>
+          <h1>Select A Digital Co-Worker</h1>
+          <p class="pageHelper">Choose one persona for your digital worker.</p>
         </div>
       </div>
-      <div class="grid three">
+      <div class="grid three personaGrid ${personaError ? "personaGridInvalid" : ""}" role="radiogroup" aria-label="Digital co-worker persona">
         ${personas().map((persona) => renderPersonaCard(persona)).join("")}
       </div>
+      <p class="fieldMessage personaErrorMessage" aria-live="polite">
+        ${personaError ? "Please select one digital co-worker to continue." : ""}
+      </p>
       ${state.personaId ? `
         <section class="workerNamePanel">
-          <div class="field">
+          <div class="field ${workerNameError ? "fieldInvalid" : ""}">
             <label class="label" for="workerName">Digital worker name</label>
-            <input id="workerName" class="input" value="${esc(state.workerName)}" placeholder="Name your digital worker" autocomplete="off" />
+            <input
+              id="workerName"
+              class="input"
+              value="${esc(state.workerName)}"
+              placeholder="Name your digital worker"
+              autocomplete="off"
+              aria-invalid="${workerNameError ? "true" : "false"}"
+              aria-describedby="workerNameMessage"
+            />
+            <p id="workerNameMessage" class="fieldMessage" aria-live="polite">
+              ${workerNameError ? "Please enter a digital worker name to continue." : ""}
+            </p>
           </div>
+          <div class="recommendationLabel">AI Recommended Digital Worker Name:</div>
           <div class="suggestionRow compactSuggestions">
             ${suggestions.map((name) => `<button class="nameSuggestion" data-name-suggestion="${esc(name)}">${esc(name)}</button>`).join("")}
           </div>
@@ -525,9 +679,18 @@ function renderPersona() {
 function renderPersonaCard(persona) {
   const selected = state.personaId === persona.PersonaID;
   return `
-    <button class="choice ${selected ? "selected" : ""}" data-persona="${esc(persona.PersonaID)}">
-      <h3>${esc(persona.PersonaName)}</h3>
-      <p>${esc(persona.Description)}</p>
+    <button
+      class="choice personaChoice ${selected ? "selected" : ""}"
+      data-persona="${esc(persona.PersonaID)}"
+      role="radio"
+      aria-checked="${selected ? "true" : "false"}"
+    >
+      <span class="personaChoiceTitle">
+        <span class="personaRadio" aria-hidden="true"></span>
+        <h3>${esc(persona.PersonaName)}</h3>
+        <span class="personaSelectedCheck" aria-hidden="true">✓</span>
+      </span>
+      <p>${esc(`Digital Co worker for ${persona.Description}`)}</p>
     </button>
   `;
 }
@@ -573,10 +736,37 @@ function renderPatternEmptyPreview() {
   `;
 }
 
+function patternPreviewCopy(pattern = patternById()) {
+  const name = text(pattern?.PatternName);
+  if (name === "RAG") {
+    return {
+      heading: "RAG - Retrieval Augmented Generation",
+      subtext: "AI that understands and reasons over enterprise content",
+    };
+  }
+  if (name === "NL2SQL") {
+    return {
+      heading: "NL2SQL",
+      subtext: "Natural Language Query on Knowledge Base",
+    };
+  }
+  if (name === "Document AI") {
+    return {
+      heading: "Document AI",
+      subtext: "MutiModal AI that can Infer Insights from Documents",
+    };
+  }
+  return {
+    heading: name || "Selected capability",
+    subtext: blueprintFor()?.BlueprintTheme || "Workbook mapped architecture",
+  };
+}
+
 function renderPatternConfigurator() {
   const blueprint = blueprintFor();
   const sources = availableSourcesFor();
   const selected = new Set(state.selectedKnowledgeIds);
+  const previewCopy = patternPreviewCopy();
   return `
     <section class="patternConfigurator" aria-label="Capability blueprint configuration">
       <aside class="patternKnowledgePanel">
@@ -595,12 +785,8 @@ function renderPatternConfigurator() {
         <div class="patternPreviewHead">
           <div>
             <span>Blueprint Preview</span>
-            <strong>${esc(patternById()?.PatternName || "Selected capability")}</strong>
-            <small>${esc(blueprint?.BlueprintTheme || "Workbook mapped architecture")}</small>
-          </div>
-          <div class="patternPreviewActions">
-            ${renderFlowOrientationToggle()}
-            <span class="pill red">${esc(patternById()?.PatternName || "Capability")}</span>
+            <strong>${esc(previewCopy.heading)}</strong>
+            <small>${esc(previewCopy.subtext)}</small>
           </div>
         </div>
         <div class="patternCanvas">
@@ -626,7 +812,6 @@ function renderBlueprintCanvasScreen() {
         </div>
         <div class="btnRow">
           <button class="action secondary" data-download-qr>${uiIcon("download", "iconBox")}<span>Download Blueprint</span></button>
-          <button class="action primary" data-add-leader>${uiIcon("award", "iconBox")}<span>Add to Leaderboard</span></button>
         </div>
       </div>
       <div class="blueprintWorkspace">
@@ -639,7 +824,8 @@ function renderBlueprintCanvasScreen() {
 }
 
 function renderAgentRunScreen() {
-  const chatbotName = state.workerName.trim() || "Digital Worker";
+  const workerName = state.workerName.trim() || "Digital Worker";
+  const chatbotName = state.workerName.trim() ? `${workerName} Digital Co Worker` : "Digital Co Worker";
   return `
     <section class="page agentRunPage">
       <div class="runTopLine">
@@ -648,7 +834,6 @@ function renderAgentRunScreen() {
           <span class="chatHeaderIcon">${esc(shortCode(chatbotName))}</span>
           <div>
             <h1>${esc(chatbotName)}</h1>
-            <small>${esc(patternById()?.PatternName || "Selected capability")} agent test</small>
           </div>
         </div>
         <div class="btnRow runTopActions">
@@ -665,17 +850,18 @@ function renderAgentRunScreen() {
 }
 
 function renderAgentChatSurface(chatbotName) {
-  const qs = questionsFor();
+  const qs = runSuggestedQuestions();
   const hasRun = Boolean(state.run.question);
+  const hasFollowUps = hasRun && qs.some((q) => isFollowUpQuestionId(q.QnAID));
   return `
-    <section class="agentChatSurface" aria-label="${esc(chatbotName)} chat">
+    <section class="agentChatSurface ${hasRun ? "hasConversation" : ""}" aria-label="${esc(chatbotName)} chat">
       <div class="agentChatBody">
         ${hasRun ? renderRunConversation(chatbotName) : renderRunEmptyState(chatbotName)}
       </div>
       <div class="runSuggested">
-        <div class="suggestedTitle">${hasRun ? "Follow-up questions" : "Suggested questions"}</div>
+        <div class="suggestedTitle">${hasFollowUps ? "Follow-up questions" : hasRun ? "Try another question" : "Suggested questions"}</div>
         <div class="runQuestionStrip">
-          ${qs.map((q) => `<button class="runQuestion" data-run-question="${esc(q.QnAID)}">${esc(q.Question)}</button>`).join("") || `<div class="empty miniEmpty">No workbook questions mapped for this scenario.</div>`}
+          ${qs.map(renderRunQuestionButton).join("") || `<div class="empty miniEmpty">No workbook questions mapped for this scenario.</div>`}
         </div>
       </div>
       <div class="runComposerWrap">
@@ -694,6 +880,16 @@ function renderAgentChatSurface(chatbotName) {
   `;
 }
 
+function renderRunQuestionButton(q) {
+  const tested = state.testedQuestionIds.includes(q.QnAID);
+  return `
+    <button class="runQuestion ${tested ? "tested" : ""}" data-run-question="${esc(q.QnAID)}">
+      <span>${esc(q.Question)}</span>
+      ${tested ? `<b class="questionDone">Done</b>` : ""}
+    </button>
+  `;
+}
+
 function renderRunEmptyState(chatbotName) {
   return `
     <div class="runEmptyState">
@@ -708,15 +904,18 @@ function renderRunConversation(chatbotName) {
   return `
     <div class="runConversation">
       <article class="runBubbleRow user">
-        <div class="runBubble user">${esc(state.run.question)}</div>
+        <div class="runMessageStack alignEnd">
+          <span class="runMessageLabel">You</span>
+          <div class="runBubble user">${esc(state.run.question)}</div>
+        </div>
       </article>
       <article class="runBubbleRow agent">
         <span class="chatAvatar">${esc(shortCode(chatbotName))}</span>
-        <div>
+        <div class="runMessageStack">
+          <span class="runMessageLabel">${esc(chatbotName)}</span>
           <div class="runBubble agent">
             ${state.run.response ? esc(state.run.response) : `<span class="thinkingDots"><i></i><i></i><i></i></span><span>Thinking through the agent flow...</span>`}
           </div>
-          ${state.run.response ? renderReasoning() : ""}
         </div>
       </article>
     </div>
@@ -818,7 +1017,7 @@ function renderThinkingAgents() {
 }
 
 function renderThinkingSources() {
-  const sources = selectedSources();
+  const sources = runEvidenceSources();
   return `
     <section class="thinkingBlock">
       <h3>Evidence</h3>
@@ -1043,8 +1242,10 @@ function oracleWordmark() {
 function agentIconName(label = "") {
   const value = label.toLowerCase();
   if (value.includes("retriev") || value.includes("search")) return "search";
-  if (value.includes("vector")) return "vector";
-  if (value.includes("genai") || value.includes("llm") || value.includes("reason")) return "brain";
+  if (value.includes("vector") || value.includes("knowledge processing")) return "vector";
+  if (value.includes("genai") || value.includes("llm") || value.includes("reason") || value.includes("inference")) return "brain";
+  if (value.includes("extract")) return "scan";
+  if (value.includes("validat") || value.includes("compliance")) return "shield";
   if (value.includes("upload")) return "upload";
   if (value.includes("ocr") || value.includes("vision")) return "scan";
   if (value.includes("understanding") || value.includes("document")) return "fileText";
@@ -1068,8 +1269,6 @@ function renderBlueprintPane(blueprint) {
           </div>
           <div class="canvasActions">
             ${renderSourceRailButton()}
-            ${renderFlowOrientationToggle()}
-            <span class="pill red">${esc(patternById()?.PatternName)}</span>
           </div>
         </div>
       </div>
@@ -1088,15 +1287,6 @@ function renderSourceRailButton() {
     <button class="canvasToolButton" type="button" data-source-rail-toggle aria-expanded="${state.sourceRailOpen ? "true" : "false"}">
       ${uiIcon("database", "iconBox")}<span>Sources</span><b>${count}</b>
     </button>
-  `;
-}
-
-function renderFlowOrientationToggle() {
-  return `
-    <div class="flowToggle" role="group" aria-label="Blueprint layout">
-      <button type="button" class="${state.flowOrientation === "horizontal" ? "active" : ""}" data-flow-orientation="horizontal" aria-pressed="${state.flowOrientation === "horizontal" ? "true" : "false"}">Horizontal</button>
-      <button type="button" class="${state.flowOrientation === "vertical" ? "active" : ""}" data-flow-orientation="vertical" aria-pressed="${state.flowOrientation === "vertical" ? "true" : "false"}">Vertical</button>
-    </div>
   `;
 }
 
@@ -1131,7 +1321,7 @@ function renderBranchedBlueprint() {
   const workerNodes = nodes.filter((node) => !["user", "source", "response"].includes(node.id));
   const sources = selectedSources();
   return `
-    <div class="branchFlow ${esc(state.flowOrientation)}">
+    <div class="branchFlow horizontal">
       ${renderFlowNode(userNode, 0)}
       ${renderFlowConnector(0)}
       ${renderFlowNode({ label: "AI Orchestrator", detail: "Classifies intent and dispatches selected branches" }, 1, "orchestrator")}
@@ -1192,7 +1382,7 @@ function renderSourceConstellation(sources, stage) {
     <div class="sourceConstellation ${flowStageClass(stage)}" style="--source-count: ${sourceCount}">
       <div class="branchGroupTitle">Evidence retrieval</div>
       <div class="sourceChipGrid">
-        ${sources.map((source) => renderSourceBranch(source, stage)).join("") || `<div class="empty miniEmpty">No workbook items selected</div>`}
+        ${sources.map((source) => renderSourceBranch(source, stage)).join("") || `<div class="empty miniEmpty">Select one or more knowledge sources.</div>`}
       </div>
     </div>
   `;
@@ -1285,7 +1475,7 @@ function renderBranchGroup(title, cards, stage, className) {
     <div class="branchGroup ${className} ${flowStageClass(stage)}">
       <div class="branchGroupTitle">${esc(title)}</div>
       <div class="branchGrid">
-        ${cards || `<div class="empty miniEmpty">No workbook items selected</div>`}
+        ${cards || `<div class="empty miniEmpty">Select one or more knowledge sources.</div>`}
       </div>
     </div>
   `;
@@ -1351,8 +1541,9 @@ function renderRuntime() {
 }
 
 function renderChatPane() {
-  const qs = questionsFor();
+  const qs = runSuggestedQuestions();
   const hasRun = Boolean(state.run.question);
+  const hasFollowUps = hasRun && qs.some((q) => isFollowUpQuestionId(q.QnAID));
   const chatbotName = state.workerName.trim() || "Digital Worker";
   return `
     <aside class="panel chatPanel redwoodChat">
@@ -1369,7 +1560,7 @@ function renderChatPane() {
           </div>
         </div>
         ${renderMessages()}
-        <div class="suggestedTitle">${hasRun ? "Follow-up questions" : "Suggested questions"}</div>
+        <div class="suggestedTitle">${hasFollowUps ? "Follow-up questions" : hasRun ? "Try another question" : "Suggested questions"}</div>
         <div class="promptList chatPromptList">
           ${qs.map((q) => `<button class="prompt" data-run-question="${esc(q.QnAID)}"><span>${esc(q.Question)}</span><b aria-hidden="true">&rsaquo;</b></button>`).join("") || `<div class="empty">No questions mapped for this scenario.</div>`}
         </div>
@@ -1396,22 +1587,9 @@ function renderMessages() {
     <div class="chatMessage agentMessage">
       <span class="chatAvatar">AI</span>
       <div class="messageStack">
-        ${state.run.response ? `<div class="bubble agent">${esc(state.run.response)}</div>${renderReasoning()}` : `<div class="bubble agent">Executing blueprint path. Nodes light up sequentially in the center panel.</div>`}
+        ${state.run.response ? `<div class="bubble agent">${esc(state.run.response)}</div>` : `<div class="bubble agent">Executing blueprint path. Nodes light up sequentially in the center panel.</div>`}
         <span class="chatTime">${state.run.response ? `Completed in ${state.run.durationMs} ms` : "Working"}</span>
       </div>
-    </div>
-  `;
-}
-
-function renderReasoning() {
-  const sourceNames = selectedSources().map((source) => source.KnowledgeSource).join(", ");
-  const scenario = scenarioFor();
-  return `
-    <div class="previewBox">
-      <h4>Reasoning Flow</h4>
-      <p class="small">Scenario: ${esc(scenario?.ScenarioTitle || "Workbook scenario")}</p>
-      <p class="small">Sources: ${esc(sourceNames || "No sources selected")}</p>
-      <p class="small">Capability: ${esc(patternById()?.PatternName)}.</p>
     </div>
   `;
 }
@@ -1424,11 +1602,9 @@ function renderLeaderboard() {
         <div>
           <div class="eyebrow">Leaderboard + Download Blueprint</div>
           <h1>Blueprint rankings</h1>
-          <p class="subcopy">Scores are calculated from <b>12_Leaderboard_Config</b> weights and current blueprint state.</p>
         </div>
         <div class="btnRow">
-          <span class="pill green">Current score ${currentScore}</span>
-          <button class="action primary" data-add-leader>${uiIcon("award", "iconBox")}<span>Add Current Run</span></button>
+          <span class="pill green">Current Run score ${currentScore}</span>
         </div>
       </div>
       <section class="panel pad">
@@ -1441,13 +1617,13 @@ function renderLeaderboard() {
 
 function renderLeaderboardTable() {
   const rows = [...state.leaderboard].sort((a, b) => b.score - a.score);
-  if (!rows.length) return `<div class="empty">No leaderboard rows yet. Add the current blueprint to create a ranking.</div>`;
+  if (!rows.length) return `<div class="empty">No leaderboard rows yet. Complete a Run Agent test to create a ranking.</div>`;
   return `
     <div class="tableWrap">
       <table>
         <thead>
           <tr>
-            <th>User</th><th>Persona</th><th>Capability</th><th>Blueprint Name</th><th>Score</th><th>Downloads</th>
+            <th>User</th><th>Persona</th><th>Capability</th><th>Blueprint Name</th><th>Score</th><th>Benefits</th><th>Downloads</th>
           </tr>
         </thead>
         <tbody>
@@ -1458,6 +1634,11 @@ function renderLeaderboardTable() {
               <td>${esc(row.pattern)}</td>
               <td>${esc(row.blueprintName)}</td>
               <td><span class="score">${row.score}</span></td>
+              <td>
+                <button class="iconMiniButton" data-benefits data-leader-index="${index}" aria-label="Show digital worker benefits">
+                  ${uiIcon("chart", "miniIcon")}
+                </button>
+              </td>
               <td><button class="miniButton" data-download-qr data-leader-index="${index}">Download Blueprint</button></td>
             </tr>
           `).join("")}
@@ -1468,8 +1649,10 @@ function renderLeaderboardTable() {
 }
 
 function renderModal() {
+  if (state.runSuccessOpen) return renderRunSuccessModal();
   if (state.settingsOpen) return renderSettingsModal();
   if (state.downloadModalOpen) return renderDownloadModal();
+  if (state.benefitsPayload) return renderBenefitsModal();
   if (state.docViewerSourceId) return renderDocumentViewerModal();
   if (!state.modalSourceId) return "";
   const source = sourceById(state.modalSourceId);
@@ -1497,6 +1680,169 @@ function renderModal() {
       </section>
     </div>
   `;
+}
+
+function renderRunSuccessModal() {
+  const workerName = state.workerName.trim() || "Digital Co Worker";
+  const patternName = patternById()?.PatternName || "selected capability";
+  const testedCount = testedQuestionIdsForThread().filter((id) => state.testedQuestionIds.includes(id)).length;
+  return `
+    <div class="modalBackdrop runSuccessBackdrop">
+      <section class="modal runSuccessModal" role="dialog" aria-modal="true" aria-label="Agent test successful">
+        <div class="runSuccessHero">
+          <span class="runSuccessBadge">${uiIcon("award", "successBadgeIcon")}</span>
+          <p class="runSuccessEyebrow">Congratulations</p>
+          <h2>Digital Co Worker creation is successful</h2>
+          <p class="runSuccessLead">Wow, you have successfully tested the agent. ${esc(workerName)} creation is successful and ready for the Complete screen.</p>
+        </div>
+        <div class="runSuccessBody">
+          <div class="runSuccessStats">
+            <span><b>${testedCount}/3</b><small>questions tested</small></span>
+            <span><b>${esc(patternName)}</b><small>capability validated</small></span>
+            <span><b>${computeScore()}</b><small>current score</small></span>
+          </div>
+          <p>${esc(workerName)} is now added as a tested Digital Co Worker run. Continue will save this run to the leaderboard and open the Complete screen.</p>
+          <button class="action primary runSuccessContinue" data-run-success-continue>Continue &rarr;</button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function renderBenefitsModal() {
+  const payload = state.benefitsPayload || {};
+  const benefits = benefitsForPayload(payload);
+  return `
+    <div class="modalBackdrop" data-modal-close>
+      <section class="modal benefitsModal" role="dialog" aria-modal="true" aria-label="Digital worker benefits">
+        <header class="modalHead">
+          <div>
+            <div class="eyebrow">Agent Benefits</div>
+            <h2>${esc(benefits.workerName)}</h2>
+            <p>${esc(benefits.summary)}</p>
+          </div>
+          <button class="action secondary" data-modal-close>${uiIcon("close", "iconBox")}<span>Close</span></button>
+        </header>
+        <div class="modalBody">
+          <div class="benefitContext">
+            <span>${esc(benefits.persona)}</span>
+            <span>${esc(benefits.pattern)}</span>
+            <span>${esc(benefits.latestQuestion)}</span>
+          </div>
+          <div class="benefitCompare">
+            <section>
+              <h3>Manual steps</h3>
+              <ul>${benefits.manualSteps.map((step) => `<li>${esc(step)}</li>`).join("")}</ul>
+            </section>
+            <section>
+              <h3>Digital worker automation</h3>
+              <ul>${benefits.automatedSteps.map((step) => `<li>${esc(step)}</li>`).join("")}</ul>
+            </section>
+          </div>
+          <section class="benefitImpact">
+            <h3>What it helped automate</h3>
+            <div>
+              ${benefits.impact.map((item) => `<span>${esc(item)}</span>`).join("")}
+            </div>
+          </section>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function benefitsForPayload(payload = {}) {
+  const pattern = payload.pattern || payload.blueprintName || "Selected capability";
+  const persona = payload.persona || "Selected persona";
+  const workerName = payload.digitalWorkerName
+    ? `${payload.digitalWorkerName} Digital Co Worker`
+    : payload.blueprintName || "Digital Co Worker";
+  const latestQuestion = payload.latestRun?.question || "Current run";
+  const sources = (payload.knowledgeSources || [])
+    .map((source) => source.KnowledgeSource)
+    .filter(Boolean)
+    .slice(0, 3)
+    .join(", ");
+  const sourceText = sources || "selected enterprise sources";
+  const normalized = pattern.toLowerCase();
+  let manualSteps = [
+    "Open each source system separately.",
+    "Search for relevant evidence and compare details manually.",
+    "Draft an answer and keep track of the source trail.",
+  ];
+  let automatedSteps = [
+    "Classified the request and selected the right worker branch.",
+    "Retrieved relevant evidence from the mapped knowledge sources.",
+    "Generated a grounded answer with traceable supporting context.",
+  ];
+  let impact = ["Less source switching", "Faster answer drafting", "More consistent evidence trail"];
+
+  if (normalized.includes("rag")) {
+    manualSteps = [
+      `Search ${sourceText} one by one.`,
+      "Read policy pages, emails, and collaboration notes to find matching guidance.",
+      "Compare the evidence, resolve conflicts, and write a response manually.",
+      "Capture what source supported the final answer.",
+    ];
+    automatedSteps = [
+      "Classified the question as an enterprise search request.",
+      `Retrieved the best matching evidence from ${sourceText}.`,
+      "Used retriever, knowledge processing, and Oracle GenAI agents to build a grounded answer.",
+      "Returned the answer with the relevant evidence shown in the trace.",
+    ];
+    impact = ["Automated enterprise search", "Reduced manual evidence review", "Kept responses grounded in source content"];
+  } else if (normalized.includes("nl2sql")) {
+    manualSteps = [
+      "Translate the business question into metrics, filters, and dimensions.",
+      "Find the right tables, columns, and business definitions.",
+      "Write and validate SQL before formatting the answer.",
+      "Explain the result and call out exceptions manually.",
+    ];
+    automatedSteps = [
+      "Detected intent, metrics, dimensions, and filters from natural language.",
+      "Retrieved schema and business context before generating SQL.",
+      "Validated SQL and formatted the result for business use.",
+      "Highlighted the answer without asking the user to inspect raw tables.",
+    ];
+    impact = ["Automated SQL drafting", "Reduced schema lookup time", "Improved result consistency"];
+  } else if (normalized.includes("document")) {
+    manualSteps = [
+      "Open each document and identify its type.",
+      "Read pages to extract fields, clauses, dates, and exceptions.",
+      "Check extracted information against business rules.",
+      "Summarize findings and recommend next actions manually.",
+    ];
+    automatedSteps = [
+      "Classified document type and selected the right extraction path.",
+      "Extracted fields, clauses, and key business signals.",
+      "Validated outputs against business and compliance checks.",
+      "Generated insights, reasoning, and recommendations.",
+    ];
+    impact = ["Automated document review", "Reduced field extraction effort", "Improved clause and exception visibility"];
+  } else if (normalized.includes("cognitive") || normalized.includes("voice")) {
+    manualSteps = [
+      "Review recordings, transcripts, or media files manually.",
+      "Identify sentiment, events, and priority signals.",
+      "Classify risk and route the case to the right team.",
+    ];
+    automatedSteps = [
+      "Analyzed media and transcript signals automatically.",
+      "Classified intent, risk, sentiment, and operational priority.",
+      "Prepared a next-best action for the support or operations team.",
+    ];
+    impact = ["Automated media triage", "Faster issue classification", "Clearer next-best action"];
+  }
+
+  return {
+    workerName,
+    persona,
+    pattern,
+    latestQuestion,
+    summary: `${workerName} helped ${persona} test ${pattern} by turning manual investigation into an orchestrated AI workflow.`,
+    manualSteps,
+    automatedSteps,
+    impact,
+  };
 }
 
 function renderDownloadModal() {
@@ -1921,11 +2267,19 @@ function sourceFileMatchers(source, kind) {
 }
 
 function startRun(qnaId, customQuestion = "") {
-  const qna = qnaId ? sheet("08_Scenario_QnA").find((row) => row.QnAID === qnaId) : null;
+  const qna = qnaId ? questionById(qnaId) : null;
   const question = customQuestion || qna?.Question || "";
   if (!question.trim()) return;
   if (runTimer) window.clearInterval(runTimer);
+  state.runSuccessOpen = false;
   state.customQuestion = "";
+  if (qnaId) {
+    const rootId = rootQuestionId(qnaId);
+    if (!isFollowUpQuestionId(qnaId) && state.activeQuestionThreadId !== rootId) {
+      state.testedQuestionIds = [];
+    }
+    state.activeQuestionThreadId = rootId;
+  }
   state.run = {
     ...emptyRun(),
     running: true,
@@ -1948,6 +2302,10 @@ function startRun(qnaId, customQuestion = "") {
       state.run.currentStep = 4;
       state.run.durationMs = elapsed;
       state.run.response = state.run.isCustom ? customResponse(question) : workbookResponse(qna);
+      if (qnaId) markQuestionTested(qnaId);
+      if (!state.run.isCustom && currentQuestionThreadComplete()) {
+        state.runSuccessOpen = true;
+      }
     }
     render();
   }, 180);
@@ -1976,10 +2334,12 @@ function computeScore() {
   const available = availableSourcesFor().length || 1;
   const selected = selectedSources().length;
   const questions = questionsFor().length;
+  const threadQuestions = testedQuestionIdsForThread().length || 3;
+  const testedQuestions = state.testedQuestionIds.length || (state.run.response ? 1 : 0);
   const values = {
     "Blueprint completeness": state.personaId && state.patternId && state.workerName ? 1 : 0,
     "Knowledge source coverage": Math.min(selected / available, 1),
-    "Question coverage": Math.min(questions / 2, 1),
+    "Question coverage": Math.min(testedQuestions / Math.max(threadQuestions, questions, 1), 1),
     "Execution readiness": state.run.response ? 1 : 0.75,
   };
   const score = weights.reduce((sum, row) => {
@@ -2008,6 +2368,8 @@ function blueprintPayload(rowPayload = null) {
     executionStyle: blueprint?.ExecutionStyle || "",
     knowledgeSources: selectedSources(),
     questions: questionsFor(),
+    testedQuestionIds: state.testedQuestionIds,
+    activeFollowUpQuestions: followUpQuestionsFor(),
     latestRun: state.run,
     nodes: blueprintNodes(),
     runtimeDetails: runtimeSteps(),
@@ -2015,10 +2377,26 @@ function blueprintPayload(rowPayload = null) {
   };
 }
 
-function addLeaderboard() {
-  const payload = blueprintPayload();
+function leaderboardRunKey(payload) {
+  return [
+    payload.user,
+    payload.persona,
+    payload.pattern,
+    payload.digitalWorkerName,
+    payload.latestRun?.startedAt || 0,
+    payload.latestRun?.qnaId || "",
+    payload.latestRun?.response || "",
+    (payload.testedQuestionIds || []).join("|"),
+  ].join("::");
+}
+
+function saveCurrentRunToLeaderboard() {
+  const payload = clone(blueprintPayload());
+  const runKey = leaderboardRunKey(payload);
+  if (state.lastSavedRunKey === runKey) return;
   const row = {
     id: `LB-${Date.now()}`,
+    runKey,
     user: payload.user || "Anonymous",
     persona: payload.persona,
     experience: payload.experience,
@@ -2027,10 +2405,24 @@ function addLeaderboard() {
     score: payload.score,
     payload,
   };
-  state.leaderboard = [row, ...state.leaderboard].slice(0, 20);
+  state.leaderboard = [row, ...state.leaderboard.filter((item) => item.runKey !== runKey)].slice(0, 20);
+  state.lastSavedRunKey = runKey;
   localStorage.setItem("ociAiFactoryLeaderboard", JSON.stringify(state.leaderboard));
+}
+
+function completeCurrentRun() {
+  state.runSuccessOpen = false;
+  saveCurrentRunToLeaderboard();
   state.screen = "leaderboard";
   render();
+}
+
+function addLeaderboard() {
+  completeCurrentRun();
+}
+
+function continueFromRunSuccess() {
+  completeCurrentRun();
 }
 
 function readLeaderboard() {
@@ -2045,13 +2437,27 @@ function rowPayloadFromButton(button) {
   const index = button.dataset.leaderIndex;
   if (index === undefined) return null;
   const rows = [...state.leaderboard].sort((a, b) => b.score - a.score);
-  return rows[Number(index)]?.payload || null;
+  const row = rows[Number(index)];
+  return row?.payload || row || null;
+}
+
+function openBenefitsModal(payload = null) {
+  state.benefitsPayload = payload || blueprintPayload();
+  state.runSuccessOpen = false;
+  state.downloadModalOpen = false;
+  state.downloadPayload = null;
+  state.modalSourceId = "";
+  state.docViewerSourceId = "";
+  state.settingsOpen = false;
+  render();
 }
 
 function openDownloadModal(payload = null) {
   const data = payload || blueprintPayload();
   state.downloadPayload = data;
   state.downloadModalOpen = true;
+  state.benefitsPayload = null;
+  state.runSuccessOpen = false;
   state.modalSourceId = "";
   state.docViewerSourceId = "";
   state.settingsOpen = false;
@@ -2458,9 +2864,12 @@ function resetAfterWorkbook() {
   state.settingsOpen = false;
   state.downloadModalOpen = false;
   state.downloadPayload = null;
+  state.benefitsPayload = null;
   state.traceOpen = false;
   state.sourceRailOpen = false;
   state.flowOrientation = "horizontal";
+  resetRunTesting();
+  resetSavedRunKey();
   state.run = emptyRun();
   state.screen = "persona";
   render();
@@ -2490,11 +2899,6 @@ document.addEventListener("click", (event) => {
     state.traceOpen = !state.traceOpen;
     return render();
   }
-  if (target.dataset.flowOrientation) {
-    event.preventDefault();
-    state.flowOrientation = target.dataset.flowOrientation === "vertical" ? "vertical" : "horizontal";
-    return render();
-  }
   if (target.dataset.docClose !== undefined) {
     if (event.target === target || target.matches("button")) {
       event.preventDefault();
@@ -2510,6 +2914,8 @@ document.addEventListener("click", (event) => {
     state.docViewerSourceId = "";
     state.downloadModalOpen = false;
     state.downloadPayload = null;
+    state.benefitsPayload = null;
+    state.runSuccessOpen = false;
     return render();
   }
   if (target.dataset.modalClose !== undefined) {
@@ -2519,6 +2925,8 @@ document.addEventListener("click", (event) => {
       state.settingsOpen = false;
       state.downloadModalOpen = false;
       state.downloadPayload = null;
+      state.benefitsPayload = null;
+      state.runSuccessOpen = false;
       render();
     }
     return;
@@ -2532,24 +2940,29 @@ document.addEventListener("click", (event) => {
   if (target.dataset.routeNext !== undefined) return next();
   if (target.dataset.persona) {
     state.personaId = target.dataset.persona;
+    state.personaError = false;
     state.experience = "Engineer";
     state.experienceSelected = true;
     state.patternId = "";
     state.selectedKnowledgeIds = [];
     state.knowledgeContext = "";
+    resetRunTesting();
     state.run = emptyRun();
     state.traceOpen = false;
     state.sourceRailOpen = false;
     state.workerName = "";
+    state.workerNameError = false;
     ensureDefaults(true);
     return render();
   }
   if (target.dataset.nameSuggestion) {
     state.workerName = target.dataset.nameSuggestion;
+    state.workerNameError = false;
     return render();
   }
   if (target.dataset.pattern) {
     state.patternId = target.dataset.pattern;
+    resetRunTesting();
     state.run = emptyRun();
     state.traceOpen = false;
     state.sourceRailOpen = false;
@@ -2561,6 +2974,7 @@ document.addEventListener("click", (event) => {
     if (selected.has(target.dataset.sourceToggle)) selected.delete(target.dataset.sourceToggle);
     else selected.add(target.dataset.sourceToggle);
     state.selectedKnowledgeIds = [...selected];
+    resetRunTesting();
     state.run = emptyRun();
     state.traceOpen = false;
     return render();
@@ -2570,16 +2984,21 @@ document.addEventListener("click", (event) => {
     state.modalSourceId = "";
     state.downloadModalOpen = false;
     state.downloadPayload = null;
+    state.benefitsPayload = null;
+    state.runSuccessOpen = false;
     state.settingsOpen = false;
     return render();
   }
   if (target.dataset.docOpen) {
     state.docViewerSourceId = target.dataset.docOpen;
+    state.runSuccessOpen = false;
     return render();
   }
   if (target.dataset.runQuestion) return startRun(target.dataset.runQuestion);
   if (target.dataset.runCustom !== undefined) return startRun("", state.customQuestion.trim());
+  if (target.dataset.runSuccessContinue !== undefined) return continueFromRunSuccess();
   if (target.dataset.addLeader !== undefined) return addLeaderboard();
+  if (target.dataset.benefits !== undefined) return openBenefitsModal(rowPayloadFromButton(target));
   if (target.dataset.downloadQr !== undefined) return openDownloadModal(rowPayloadFromButton(target));
   if (target.dataset.download) return download(target.dataset.download, rowPayloadFromButton(target));
   if (target.dataset.workbookUploadTrigger !== undefined) return document.getElementById("workbookUpload")?.click();
@@ -2590,11 +3009,14 @@ function resetExperience() {
   if (runTimer) window.clearInterval(runTimer);
   runTimer = null;
   state.screen = "register";
-  state.name = "Harry";
+  state.name = "";
+  state.registerError = false;
   state.personaId = "";
+  state.personaError = false;
   state.experience = "Engineer";
   state.experienceSelected = true;
   state.workerName = "";
+  state.workerNameError = false;
   state.patternId = "";
   state.selectedKnowledgeIds = [];
   state.knowledgeContext = "";
@@ -2603,19 +3025,36 @@ function resetExperience() {
   state.settingsOpen = false;
   state.downloadModalOpen = false;
   state.downloadPayload = null;
+  state.benefitsPayload = null;
   state.customQuestion = "";
   state.traceOpen = false;
   state.sourceRailOpen = false;
   state.flowOrientation = "horizontal";
+  resetRunTesting();
+  resetSavedRunKey();
   state.run = emptyRun();
 }
 
 document.addEventListener("input", (event) => {
   if (event.target.id === "nameInput") {
     state.name = event.target.value;
+    if (state.registerError && state.name.trim()) {
+      state.registerError = false;
+      event.target.setAttribute("aria-invalid", "false");
+      event.target.closest(".field")?.classList.remove("fieldInvalid");
+      const message = document.getElementById("nameInputMessage");
+      if (message) message.textContent = "";
+    }
   }
   if (event.target.id === "workerName") {
     state.workerName = event.target.value;
+    if (state.workerNameError && state.workerName.trim()) {
+      state.workerNameError = false;
+      event.target.setAttribute("aria-invalid", "false");
+      event.target.closest(".field")?.classList.remove("fieldInvalid");
+      const message = document.getElementById("workerNameMessage");
+      if (message) message.textContent = "";
+    }
   }
   if (event.target.id === "customQuestion") {
     state.customQuestion = event.target.value;
