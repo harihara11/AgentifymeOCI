@@ -1068,12 +1068,34 @@ textarea:disabled {
 }
 
 .patternSourceList .sourceRow {
-  min-height: 42px;
-  padding: 8px;
+  min-height: 58px;
+  gap: 9px;
+  padding: 8px 9px;
 }
 
 .patternSourceList .sourceRow h4 {
   font-size: 12px;
+}
+
+.patternSourceList .sourceAvatar,
+.compactSourceList .sourceAvatar {
+  width: 36px;
+  height: 36px;
+}
+
+.patternSourceList .sourceAvatarText,
+.compactSourceList .sourceAvatarText {
+  font-size: 11px;
+}
+
+.patternSourceList .sourceRow p,
+.compactSourceList .sourceRow p {
+  font-size: 10px;
+}
+
+.patternSourceList .sourceTypePill,
+.compactSourceList .sourceTypePill {
+  display: none;
 }
 
 .patternBlueprintPreview {
@@ -1381,19 +1403,39 @@ textarea:disabled {
 .sourceRow {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 8px;
+  gap: 12px;
   align-items: center;
-  min-height: 44px;
-  padding: 9px 10px;
+  min-height: 66px;
+  padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
 }
 
+.sourceRow[role="button"] {
+  cursor: pointer;
+}
+
+.sourceRow[role="button"]:hover {
+  border-color: var(--line-strong);
+  background: #fffdfb;
+}
+
 .sourceRow.selected {
   border-color: rgba(199, 70, 52, 0.48);
-  background: #fff8f5;
+  background: #fffaf8;
   box-shadow: inset 3px 0 0 var(--oracle-red);
+}
+
+.sourceContent {
+  min-width: 0;
+}
+
+.sourceTitleLine {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
 }
 
 .sourceRow h4 {
@@ -1407,62 +1449,113 @@ textarea:disabled {
   line-height: 1.2;
 }
 
+.sourceRow p {
+  margin: 4px 0 0;
+  overflow: hidden;
+  color: #817972;
+  font-size: 12px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sourceRow.disabled {
-  background: #f6f3ef;
+  background: #fbfaf8;
+}
+
+.sourceAvatar {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  color: var(--source-tone, #3b6fc8);
+  box-shadow: 0 0 0 1px rgba(28, 24, 20, 0.08);
+}
+
+.sourceBrandIcon {
+  width: 29px;
+  height: 29px;
+  display: block;
 }
 
 .sourceSelectControl {
-  width: 22px;
-  height: 22px;
-  border: 1px solid var(--line-strong);
-  border-radius: 5px;
-  display: grid;
-  flex: 0 0 auto;
+  pointer-events: none;
+}
+
+.sourceRow[role="button"]:hover .sourceSelectControl {
+  box-shadow: 0 0 0 3px rgba(199, 70, 52, 0.12);
+}
+
+.sourceCheckBadge {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 17px;
+  height: 17px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  display: none;
   place-items: center;
-  background: #fff;
+  background: #15110f;
   color: #fff;
-  font-size: 13px;
+  font-size: 10px;
   font-weight: 950;
   line-height: 1;
-  cursor: pointer;
 }
 
-.sourceSelectControl.checked {
-  border-color: var(--oracle-red);
-  background: var(--oracle-red);
-  box-shadow: 0 0 0 2px rgba(199, 70, 52, 0.12);
-}
-
-.sourceSelectControl:hover {
-  border-color: var(--oracle-red);
+.sourceSelectControl.checked .sourceCheckBadge {
+  display: grid;
 }
 
 .sourceActions {
   display: flex;
-  gap: 5px;
+  gap: 7px;
   align-items: center;
 }
 
 .sourceSelectedPill {
-  height: 24px;
+  height: 19px;
   border: 1px solid rgba(199, 70, 52, 0.32);
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
-  padding: 0 8px;
+  padding: 0 6px;
   background: #fff;
   color: var(--oracle-red);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 900;
   line-height: 1;
   text-transform: uppercase;
+}
+
+.sourceTypePill {
+  max-width: 88px;
+  height: 22px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  overflow: hidden;
+  background: #fff;
+  color: #6b625c;
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .sourceIconButton {
   width: 28px;
   height: 28px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 50%;
   display: grid;
   place-items: center;
   background: #fff;
@@ -1477,6 +1570,55 @@ textarea:disabled {
   border-color: var(--oracle-red);
   color: var(--oracle-red);
   background: #fff7f4;
+}
+
+.sourcePreviewButton {
+  border-color: transparent;
+  background: transparent;
+  color: #7d746d;
+}
+
+.sourcePreviewButton:hover {
+  border-color: var(--line);
+  background: #fff;
+}
+
+.chevronIcon svg {
+  width: 17px;
+  height: 17px;
+  display: block;
+}
+
+.sourceTonePortal {
+  --source-tone: #315f9f;
+}
+
+.sourceToneEmail {
+  --source-tone: #2f7ea0;
+}
+
+.sourceToneSlack {
+  --source-tone: #3f8f60;
+}
+
+.sourceToneJira {
+  --source-tone: #8b45a8;
+}
+
+.sourceToneData {
+  --source-tone: #6a7334;
+}
+
+.sourceToneAudio {
+  --source-tone: #bd5b2d;
+}
+
+.sourceToneVideo {
+  --source-tone: #7d4f96;
+}
+
+.sourceToneDoc {
+  --source-tone: #b43d33;
 }
 
 .redwoodIcon,
@@ -1636,8 +1778,9 @@ textarea:disabled {
 }
 
 .compactSourceList .sourceRow {
-  min-height: 38px;
-  padding: 7px 8px;
+  min-height: 56px;
+  gap: 9px;
+  padding: 8px;
 }
 
 .compactSourceList .sourceRow h4 {

@@ -856,21 +856,127 @@ function renderKnowledgePane() {
 
 function renderSourceRow(source, selected, editable) {
   const sourceName = esc(source.KnowledgeSource);
+  const sourceMeta = esc(source.SourceType || source.Description || "Workbook source");
+  const sourceTag = esc(source.Channel || "Source");
+  const sourceTone = sourceToneClass(source);
   const toggleLabel = `${selected ? "Deselect" : "Select"} ${source.KnowledgeSource}`;
   return `
-    <article class="sourceRow ${selected ? "selected" : "disabled"}" aria-label="${sourceName} ${selected ? "selected" : "not selected"}">
-      ${editable ? `
-        <button class="sourceSelectControl ${selected ? "checked" : ""}" type="button" data-source-toggle="${esc(source.KnowledgeID)}" aria-pressed="${selected ? "true" : "false"}" aria-label="${esc(toggleLabel)}">
-          <span aria-hidden="true">${selected ? "✓" : ""}</span>
-        </button>
-      ` : `<span class="sourceSelectControl ${selected ? "checked" : ""}" aria-hidden="true"><span>${selected ? "✓" : ""}</span></span>`}
-      <h4>${sourceName}</h4>
+    <article class="sourceRow ${sourceTone} ${selected ? "selected" : "disabled"}" ${editable ? `data-source-toggle="${esc(source.KnowledgeID)}" role="button" aria-pressed="${selected ? "true" : "false"}"` : ""} aria-label="${sourceName} ${selected ? "selected" : "not selected"}">
+      <span class="sourceAvatar sourceSelectControl ${selected ? "checked" : ""}" aria-hidden="true">
+        ${sourceConnectorIcon(source)}
+        <span class="sourceCheckBadge" aria-hidden="true">✓</span>
+      </span>
+      <div class="sourceContent">
+        <div class="sourceTitleLine">
+          <h4>${sourceName}</h4>
+          ${selected ? `<span class="sourceSelectedPill">Selected</span>` : ""}
+        </div>
+        <p>${sourceMeta}</p>
+      </div>
       <div class="sourceActions">
-        ${selected ? `<span class="sourceSelectedPill">Selected</span>` : ""}
-        <button class="sourceIconButton" data-source-view="${esc(source.KnowledgeID)}" aria-label="View ${sourceName}">${redwoodEyeIcon()}</button>
+        <span class="sourceTypePill">${sourceTag}</span>
+        <button class="sourceIconButton sourcePreviewButton" data-source-view="${esc(source.KnowledgeID)}" aria-label="Preview ${sourceName}">${redwoodEyeIcon()}</button>
       </div>
     </article>
   `;
+}
+
+function sourceConnectorIcon(source) {
+  const kind = sourceIconKind(source);
+  const icons = {
+    outlook: `
+      <svg class="sourceBrandIcon outlookIcon" viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="12" y="7" width="15" height="18" rx="3" fill="#2b78d4"></rect>
+        <path d="M14 11h11v11H14z" fill="#54a3ff"></path>
+        <path d="M14 13l5.5 4.3L25 13v9H14z" fill="#fff" opacity=".94"></path>
+        <rect x="5" y="10" width="13" height="13" rx="2.5" fill="#0f5fb8"></rect>
+        <circle cx="11.5" cy="16.5" r="3.1" fill="none" stroke="#fff" stroke-width="1.8"></circle>
+      </svg>`,
+    sharepoint: `
+      <svg class="sourceBrandIcon sharepointIcon" viewBox="0 0 32 32" aria-hidden="true">
+        <circle cx="19" cy="11" r="6" fill="#37b5aa"></circle>
+        <circle cx="22" cy="20" r="7" fill="#168f8a"></circle>
+        <circle cx="12" cy="17" r="8" fill="#0f6f78"></circle>
+        <text x="12" y="20.5" text-anchor="middle" fill="#fff" font-size="11" font-weight="900">S</text>
+      </svg>`,
+    slack: `
+      <svg class="sourceBrandIcon slackIcon" viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="14" y="4" width="4" height="11" rx="2" fill="#36c5f0"></rect>
+        <rect x="14" y="17" width="4" height="11" rx="2" fill="#2eb67d"></rect>
+        <rect x="17" y="14" width="11" height="4" rx="2" fill="#ecb22e"></rect>
+        <rect x="4" y="14" width="11" height="4" rx="2" fill="#e01e5a"></rect>
+        <circle cx="16" cy="16" r="2.4" fill="#fff"></circle>
+      </svg>`,
+    jira: `
+      <svg class="sourceBrandIcon jiraIcon" viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M16 4 28 16 16 28 4 16 16 4Z" fill="#7b3fc7"></path>
+        <path d="M16 9 23 16 16 23 9 16 16 9Z" fill="#fff" opacity=".86"></path>
+        <path d="M16 12.5 19.5 16 16 19.5 12.5 16 16 12.5Z" fill="#7b3fc7"></path>
+      </svg>`,
+    docs: `
+      <svg class="sourceBrandIcon docsIcon" viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M9 4h10l5 5v19H9z" fill="#4285f4"></path>
+        <path d="M19 4v6h6" fill="#a8c7fa"></path>
+        <path d="M12 15h9M12 19h9M12 23h7" stroke="#fff" stroke-width="1.7" stroke-linecap="round"></path>
+      </svg>`,
+    excel: `
+      <svg class="sourceBrandIcon excelIcon" viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="10" y="5" width="17" height="22" rx="2.5" fill="#21a366"></rect>
+        <path d="M14 9h10M14 14h10M14 19h10M14 24h10M19 9v15" stroke="#fff" stroke-width="1.2" opacity=".75"></path>
+        <rect x="5" y="10" width="12" height="13" rx="2" fill="#107c41"></rect>
+        <path d="m8.3 13.5 5 6M13.3 13.5l-5 6" stroke="#fff" stroke-width="1.8" stroke-linecap="round"></path>
+      </svg>`,
+    audio: `
+      <svg class="sourceBrandIcon audioIcon" viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="12" y="5" width="8" height="15" rx="4" fill="#d86b2f"></rect>
+        <path d="M8 16a8 8 0 0 0 16 0M16 24v4" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none"></path>
+      </svg>`,
+    video: `
+      <svg class="sourceBrandIcon videoIcon" viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="6" y="9" width="15" height="14" rx="3" fill="#7d4f96"></rect>
+        <path d="m21 14 6-4v12l-6-4z" fill="#ad7bc7"></path>
+        <circle cx="12" cy="16" r="2" fill="#fff"></circle>
+      </svg>`,
+    database: `
+      <svg class="sourceBrandIcon databaseIcon" viewBox="0 0 32 32" aria-hidden="true">
+        <ellipse cx="16" cy="8" rx="10" ry="4" fill="#6a7334"></ellipse>
+        <path d="M6 8v12c0 2.2 4.5 4 10 4s10-1.8 10-4V8" fill="#8a944d"></path>
+        <path d="M6 14c0 2.2 4.5 4 10 4s10-1.8 10-4" stroke="#fff" stroke-width="1.5" opacity=".8" fill="none"></path>
+      </svg>`,
+  };
+  return icons[kind] || icons.docs;
+}
+
+function sourceIconKind(source) {
+  const name = text(source.KnowledgeSource).toLowerCase();
+  const type = text(source.SourceType).toLowerCase();
+  const channel = text(source.Channel).toLowerCase();
+  const primary = `${name} ${type}`;
+  if (name.includes("sharepoint") || name.includes("portal") || type.includes("site")) return "sharepoint";
+  if (name.includes("email") || name.includes("mailbox") || name.includes("outlook")) return "outlook";
+  if (name.includes("slack")) return "slack";
+  if (name.includes("jira") || primary.includes("issue")) return "jira";
+  if (primary.includes("csv") || primary.includes("dataset") || primary.includes("spreadsheet")) return "excel";
+  if (primary.includes("audio") || primary.includes("voice") || primary.includes("recording")) return "audio";
+  if (primary.includes("video") || primary.includes("cctv") || primary.includes("drone")) return "video";
+  if (primary.includes("database") || primary.includes("sql")) return "database";
+  if (primary.includes("pdf") || primary.includes("doc") || primary.includes("contract") || primary.includes("policy") || primary.includes("sop")) return "docs";
+  if (channel.includes("slack")) return "slack";
+  if (channel.includes("email")) return "outlook";
+  if (channel.includes("csv")) return "excel";
+  return "docs";
+}
+
+function sourceToneClass(source) {
+  const value = `${source.Channel || ""} ${source.SourceType || ""} ${source.KnowledgeSource || ""}`.toLowerCase();
+  if (value.includes("email")) return "sourceToneEmail";
+  if (value.includes("slack") || value.includes("chat")) return "sourceToneSlack";
+  if (value.includes("jira") || value.includes("issue")) return "sourceToneJira";
+  if (value.includes("csv") || value.includes("dataset") || value.includes("data")) return "sourceToneData";
+  if (value.includes("audio") || value.includes("voice")) return "sourceToneAudio";
+  if (value.includes("video") || value.includes("cctv") || value.includes("drone")) return "sourceToneVideo";
+  if (value.includes("sharepoint") || value.includes("portal") || value.includes("site")) return "sourceTonePortal";
+  return "sourceToneDoc";
 }
 
 function redwoodEyeIcon() {
@@ -904,6 +1010,7 @@ function uiIcon(name, className = "buttonIcon") {
     mic: `<rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><path d="M12 18v3"></path>`,
     video: `<rect x="4" y="6" width="11" height="12" rx="2"></rect><path d="m15 10 5-3v10l-5-3z"></path>`,
     tag: `<path d="M20 13 13 20 4 11V4h7l9 9Z"></path><circle cx="8.5" cy="8.5" r="1.2"></circle>`,
+    chevronRight: `<path d="m9 18 6-6-6-6"></path>`,
   };
   return `<span class="${esc(className)}" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false">${icons[name] || icons.download}</svg></span>`;
 }
@@ -2177,7 +2284,7 @@ function handleContentUpload(files) {
 }
 
 document.addEventListener("click", (event) => {
-  const target = event.target.closest("[data-settings-open], [data-doc-close], [data-trace-toggle], [data-source-rail-toggle], button, [data-modal-close]");
+  const target = event.target.closest("[data-settings-open], [data-doc-close], [data-trace-toggle], [data-source-rail-toggle], [data-source-toggle], button, [data-modal-close]");
   if (!target) return;
   if (target.dataset.sourceRailToggle !== undefined) {
     event.preventDefault();
