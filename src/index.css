@@ -1164,6 +1164,12 @@ textarea:disabled {
   line-height: 1.25;
 }
 
+.patternDownloadAction {
+  min-height: 34px;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+
 .knowledgeInstruction {
   display: block;
   margin-top: 4px;

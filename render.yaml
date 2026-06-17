@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: agentifyme-oci-blueprint
+    env: python
+    plan: free
+    buildCommand: ""
+    startCommand: "python3 blueprint_server.py --host 0.0.0.0 --port $PORT"
+    autoDeploy: true
+    envVars:
+      - key: BLUEPRINT_STORE_DIR
+        value: /tmp/agentifyme_blueprints

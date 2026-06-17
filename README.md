@@ -13,6 +13,32 @@ The page loads:
 - `src/index.css`
 - `src/app.js`
 
+For dynamic blueprint QR codes that open the exact generated PNG, serve the app with the local snapshot server:
+
+```bash
+python3 blueprint_server.py --port 5500
+```
+
+Then open `http://127.0.0.1:5500/AgentifyME_OCI_AI_Prototype_v3.html`.
+
+When Step 3 generates a blueprint, Download Blueprint saves the current preview as a PNG snapshot and the QR code points to `/blueprints/<snapshot-id>.png`. If the app is opened directly as a file, downloads still work from the browser-local snapshot fallback, but the QR link is only reliable in that same browser session.
+
+## Public Deployment
+
+This branch includes `render.yaml` for a Python web service deployment. Deploy the branch as a Render Blueprint or connect the GitHub repo and use:
+
+```bash
+python3 blueprint_server.py --host 0.0.0.0 --port $PORT
+```
+
+After deployment, open:
+
+```text
+https://<your-service-domain>/AgentifyME_OCI_AI_Prototype_v3.html
+```
+
+QR codes generated from that public URL will point to the same public service, so they can be opened from a phone. Snapshot storage is runtime-local by default; for long-lived production links, set `BLUEPRINT_STORE_DIR` to a persistent disk path or replace the server write with object storage.
+
 ## Regenerate Workbook Data
 
 Run this after updating the workbook:

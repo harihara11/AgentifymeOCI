@@ -4,6 +4,9 @@ const BASE_MANIFEST = window.OCI_AI_FACTORY_CONTENT_MANIFEST || [];
 let WORKBOOK = clone(BASE_WORKBOOK);
 let CONTENT_MANIFEST = clone(BASE_MANIFEST);
 let runTimer = null;
+const BLUEPRINT_SNAPSHOT_STORE_KEY = "ociAiFactoryBlueprintSnapshots";
+const LEGACY_PENDING_BLUEPRINT_KEY = "ociAiFactoryPendingBlueprintDownload";
+const MAX_BLUEPRINT_SNAPSHOTS = 40;
 
 const state = {
   screen: "register",
@@ -24,6 +27,7 @@ const state = {
   settingsOpen: false,
   downloadModalOpen: false,
   downloadPayload: null,
+  blueprintSnapshot: null,
   benefitsPayload: null,
   runSuccessOpen: false,
   composerEngaged: false,
@@ -471,6 +475,7 @@ function next() {
       focusKnowledgePanel();
       return;
     }
+    currentBlueprintSnapshot();
     return go("blueprint");
   }
   if (state.screen === "blueprint") return requestRunCompletion();
@@ -842,6 +847,7 @@ function renderPatternConfigurator() {
             <strong>${esc(previewCopy.heading)}</strong>
             <small>${esc(previewCopy.subtext)}</small>
           </div>
+          <button class="action secondary patternDownloadAction" data-download-qr>${uiIcon("download", "iconBox")}<span>Download Blueprint</span></button>
         </div>
         <div class="patternCanvas">
           ${renderBranchedBlueprint()}
@@ -1961,7 +1967,7 @@ function benefitsForPayload(payload = {}) {
 
 function renderDownloadModal() {
   const payload = state.downloadPayload || blueprintPayload();
-  const downloadUrl = blueprintDownloadUrl();
+  const downloadUrl = blueprintQrTargetUrl(payload);
   return `
     <div class="modalBackdrop" data-modal-close>
       <section class="modal qrModal" role="dialog" aria-modal="true" aria-label="Download blueprint">
@@ -2477,7 +2483,7 @@ function blueprintPayload(rowPayload = null) {
   const persona = personaById();
   const pattern = patternById();
   const blueprint = blueprintFor();
-  return {
+  const payload = {
     generatedAt: new Date().toISOString(),
     user: state.name,
     persona: persona?.PersonaName || "",
@@ -2498,6 +2504,102 @@ function blueprintPayload(rowPayload = null) {
     runtimeDetails: runtimeSteps(),
     score: computeScore(),
   };
+  const fingerprint = currentBlueprintFingerprint(payload);
+  payload.blueprintFingerprint = fingerprint;
+  if (state.blueprintSnapshot?.blueprintFingerprint === fingerprint) {
+    payload.blueprintRefId = state.blueprintSnapshot.blueprintRefId;
+    payload.blueprintUrl = state.blueprintSnapshot.blueprintUrl;
+    payload.blueprintImageUrl = state.blueprintSnapshot.blueprintImageUrl;
+    payload.blueprintPublicUrl = state.blueprintSnapshot.blueprintPublicUrl;
+    payload.snapshotStoredAt = state.blueprintSnapshot.snapshotStoredAt;
+  }
+  return payload;
+}
+
+function currentBlueprintFingerprint(payload = null) {
+  const blueprint = blueprintFor();
+  const selectedIds = [...state.selectedKnowledgeIds].sort();
+  const nodes = payload?.nodes || blueprintNodes();
+  return JSON.stringify({
+    personaId: state.personaId,
+    patternId: state.patternId,
+    workerName: state.workerName.trim(),
+    selectedKnowledgeIds: selectedIds,
+    blueprintType: blueprint?.BlueprintType || "",
+    nodes: nodes.map((node) => [node.id, node.label, node.detail]),
+  });
+}
+
+function currentBlueprintSnapshot() {
+  const payload = blueprintPayload();
+  const fingerprint = currentBlueprintFingerprint(payload);
+  if (state.blueprintSnapshot?.blueprintFingerprint === fingerprint) return state.blueprintSnapshot;
+  const snapshot = snapshotBlueprintPayload({ ...payload, blueprintFingerprint: fingerprint });
+  state.blueprintSnapshot = snapshot;
+  return snapshot;
+}
+
+function resetBlueprintSnapshot() {
+  state.blueprintSnapshot = null;
+}
+
+function snapshotBlueprintPayload(payload) {
+  const source = clone(payload || blueprintPayload());
+  const fingerprint = source.blueprintFingerprint || currentBlueprintFingerprint(source);
+  const blueprintRefId = source.blueprintRefId || generateBlueprintRefId(source);
+  const snapshot = {
+    ...source,
+    blueprintFingerprint: fingerprint,
+    blueprintRefId,
+    blueprintUrl: source.blueprintPublicUrl || source.blueprintImageUrl || source.blueprintUrl || blueprintDownloadUrl(blueprintRefId),
+    snapshotStoredAt: source.snapshotStoredAt || new Date().toISOString(),
+  };
+  persistBlueprintSnapshot(snapshot);
+  return snapshot;
+}
+
+function generateBlueprintRefId(payload) {
+  const base = slug(`${payload.digitalWorkerName || payload.blueprintName || payload.pattern || "blueprint"}`).slice(0, 42) || "blueprint";
+  const suffix = Math.random().toString(36).slice(2, 8);
+  return `${base}-${Date.now()}-${suffix}`;
+}
+
+function readBlueprintSnapshots() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(BLUEPRINT_SNAPSHOT_STORE_KEY) || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function readBlueprintSnapshot(blueprintRefId) {
+  if (!blueprintRefId) return null;
+  return readBlueprintSnapshots()[blueprintRefId] || null;
+}
+
+function blueprintSnapshotTime(snapshot) {
+  const dateValue = Date.parse(snapshot?.snapshotStoredAt || snapshot?.generatedAt || "");
+  return Number.isFinite(dateValue) ? dateValue : 0;
+}
+
+function persistBlueprintSnapshot(snapshot) {
+  if (!snapshot?.blueprintRefId) return;
+  try {
+    const snapshots = {
+      ...readBlueprintSnapshots(),
+      [snapshot.blueprintRefId]: snapshot,
+    };
+    const trimmed = Object.fromEntries(
+      Object.entries(snapshots)
+        .sort(([, a], [, b]) => blueprintSnapshotTime(b) - blueprintSnapshotTime(a))
+        .slice(0, MAX_BLUEPRINT_SNAPSHOTS)
+    );
+    localStorage.setItem(BLUEPRINT_SNAPSHOT_STORE_KEY, JSON.stringify(trimmed));
+    localStorage.setItem(LEGACY_PENDING_BLUEPRINT_KEY, JSON.stringify(snapshot));
+  } catch (error) {
+    console.warn("Could not persist blueprint snapshot to browser storage.", error);
+  }
 }
 
 function leaderboardRunKey(payload) {
@@ -2618,8 +2720,8 @@ function openBenefitsModal(payload = null) {
   render();
 }
 
-function openDownloadModal(payload = null) {
-  const data = payload || blueprintPayload();
+async function openDownloadModal(payload = null) {
+  let data = payload ? snapshotBlueprintPayload(payload) : currentBlueprintSnapshot();
   state.downloadPayload = data;
   state.downloadModalOpen = true;
   state.benefitsPayload = null;
@@ -2627,24 +2729,78 @@ function openDownloadModal(payload = null) {
   state.modalSourceId = "";
   state.docViewerSourceId = "";
   state.settingsOpen = false;
-  localStorage.setItem("ociAiFactoryPendingBlueprintDownload", JSON.stringify(data));
+  persistBlueprintSnapshot(data);
   render();
+  data = await ensureBlueprintPublicSnapshot(data);
+  if (state.downloadModalOpen && state.downloadPayload?.blueprintRefId === data.blueprintRefId) {
+    state.downloadPayload = data;
+    persistBlueprintSnapshot(data);
+    render();
+  }
 }
 
-function blueprintDownloadUrl() {
-  return `${window.location.href.split("#")[0]}#download-blueprint-png`;
+function blueprintDownloadUrl(blueprintRefId = "") {
+  const hash = blueprintRefId ? `#download-blueprint-png=${encodeURIComponent(blueprintRefId)}` : "#download-blueprint-png";
+  return `${window.location.href.split("#")[0]}${hash}`;
+}
+
+function blueprintQrTargetUrl(payload) {
+  return payload?.blueprintPublicUrl || payload?.blueprintImageUrl || payload?.blueprintUrl || blueprintDownloadUrl(payload?.blueprintRefId || "");
+}
+
+function blueprintImageDownloadUrl(payload) {
+  const value = payload?.blueprintImageUrl || payload?.blueprintPublicUrl || "";
+  if (!value || value.includes("#download-blueprint-png")) return "";
+  return value;
 }
 
 function readPendingBlueprintDownload() {
   try {
-    return JSON.parse(localStorage.getItem("ociAiFactoryPendingBlueprintDownload") || "null");
+    return JSON.parse(localStorage.getItem(LEGACY_PENDING_BLUEPRINT_KEY) || "null");
   } catch {
     return null;
   }
 }
 
-function download(type, payload = null) {
-  const data = blueprintPayload(payload || state.downloadPayload);
+async function ensureBlueprintPublicSnapshot(snapshot) {
+  if (!snapshot?.blueprintRefId) return snapshot;
+  if (snapshot.blueprintPublicUrl || snapshot.blueprintImageUrl) return snapshot;
+  if (!window.location.protocol.startsWith("http")) return snapshot;
+  try {
+    const canvas = createStep3PreviewCanvas(snapshot);
+    const imageDataUrl = canvas.toDataURL("image/png");
+    const baseName = slug(`${snapshot.digitalWorkerName || "Blueprint"}-${snapshot.pattern || "Pattern"}`) || "blueprint";
+    const response = await fetch("api/blueprints", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        blueprintRefId: snapshot.blueprintRefId,
+        fileName: `${baseName}.png`,
+        imageDataUrl,
+        payload: snapshot,
+      }),
+    });
+    if (!response.ok) throw new Error(`Blueprint snapshot upload failed with ${response.status}`);
+    const result = await response.json();
+    const absoluteUrl = new URL(result.absoluteUrl || result.url, window.location.href).href;
+    const uploaded = {
+      ...snapshot,
+      blueprintPublicUrl: absoluteUrl,
+      blueprintImageUrl: absoluteUrl,
+      blueprintUrl: absoluteUrl,
+      blueprintStorage: "server",
+    };
+    state.blueprintSnapshot = state.blueprintSnapshot?.blueprintRefId === uploaded.blueprintRefId ? uploaded : state.blueprintSnapshot;
+    persistBlueprintSnapshot(uploaded);
+    return uploaded;
+  } catch (error) {
+    console.warn("Could not create a server-backed blueprint URL. Falling back to browser snapshot URL.", error);
+    return snapshot;
+  }
+}
+
+async function download(type, payload = null) {
+  const data = payload || state.downloadPayload || currentBlueprintSnapshot();
   const baseName = slug(`${data.digitalWorkerName || "Blueprint"}-${data.pattern || "Pattern"}`);
   if (type === "json") {
     saveBlob(`${baseName}.json`, "application/json", JSON.stringify(data, null, 2));
@@ -2655,17 +2811,29 @@ function download(type, payload = null) {
     return;
   }
   if (type === "png") {
+    const publicUrl = blueprintImageDownloadUrl(data);
+    if (publicUrl) {
+      downloadUrl(publicUrl, `${baseName}.png`);
+      return;
+    }
     downloadPng(data, `${baseName}.png`);
   }
 }
 
 function downloadFromHash() {
-  if (window.location.hash !== "#download-blueprint-png") return;
-  const payload = readPendingBlueprintDownload();
+  const blueprintRefId = blueprintRefFromHash();
+  if (blueprintRefId === null) return;
+  const payload = blueprintRefId ? readBlueprintSnapshot(blueprintRefId) : readPendingBlueprintDownload();
   window.setTimeout(() => {
     download("png", payload || null);
     window.history.replaceState(null, document.title, window.location.href.split("#")[0]);
   }, 350);
+}
+
+function blueprintRefFromHash() {
+  const match = window.location.hash.match(/^#download-blueprint-png(?:=(.+))?$/);
+  if (!match) return null;
+  return match[1] ? decodeURIComponent(match[1]) : "";
 }
 
 function saveBlob(fileName, type, content) {
@@ -2676,6 +2844,13 @@ function saveBlob(fileName, type, content) {
   link.download = fileName;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function downloadUrl(url, fileName) {
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
 }
 
 function makePdf(data) {
@@ -2726,53 +2901,362 @@ function buildPdf(streamText) {
 }
 
 function downloadPng(data, fileName) {
+  downloadStep3PreviewCanvasPng(data, fileName);
+}
+
+function downloadStep3PreviewCanvasPng(data, fileName) {
+  const canvas = createStep3PreviewCanvas(data);
+  const url = canvas.toDataURL("image/png");
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
+}
+
+function createStep3PreviewCanvas(data) {
   const canvas = document.createElement("canvas");
-  canvas.width = 1500;
-  canvas.height = 940;
+  const width = 1846;
+  const height = 972;
+  const scale = 2;
+  canvas.width = width * scale;
+  canvas.height = height * scale;
   const ctx = canvas.getContext("2d");
+  ctx.scale(scale, scale);
+  drawStep3PreviewCanvas(ctx, data, width, height);
+  return canvas;
+}
+
+function drawStep3PreviewCanvas(ctx, data, width, height) {
   const nodes = data.nodes || [];
   const userNode = nodes.find((node) => node.id === "user") || nodes[0] || { label: "User", detail: "Persona question and task intent" };
   const responseNode = nodes.find((node) => node.id === "response") || nodes[nodes.length - 1] || { label: "Response", detail: "Answer with trace and source evidence" };
   const workerNodes = nodes.filter((node) => !["user", "source", "response"].includes(node.id)).slice(0, 4);
   const sources = data.knowledgeSources || [];
   const isComplete = Boolean(data.latestRun?.response);
-  const doneBorder = isComplete ? "#2e7d32" : "#c74634";
+  const doneBorder = isComplete ? "#2e7d32" : "#7ba97c";
+  const headerHeight = 116;
 
-  ctx.fillStyle = "#f7f5f2";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "#c74634";
-  ctx.fillRect(0, 0, canvas.width, 74);
   ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 28px Arial";
-  ctx.fillText("AgentifyME OCI AI Factory Blueprint", 40, 46);
+  ctx.fillRect(0, 0, width, height);
+  ctx.fillStyle = "#fbfaf8";
+  ctx.fillRect(11, headerHeight, width - 22, height - headerHeight - 14);
+  ctx.strokeStyle = "#ded8d2";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, headerHeight);
+  ctx.lineTo(width, headerHeight);
+  ctx.stroke();
+  drawCanvasDots(ctx, 32, headerHeight + 20, width - 64, height - headerHeight - 54);
 
+  ctx.fillStyle = "#c74634";
+  ctx.font = "900 19px Arial";
+  ctx.fillText("BLUEPRINT PREVIEW", 32, 34);
   ctx.fillStyle = "#171412";
-  ctx.font = "bold 34px Arial";
-  ctx.fillText(fitCanvasText(ctx, `${data.digitalWorkerName || "Digital Worker"} Digital Co Worker`, 760), 40, 124);
-  ctx.font = "bold 22px Arial";
-  ctx.fillText(fitCanvasText(ctx, blueprintHeading(data), 860), 40, 160);
+  ctx.font = "900 29px Arial";
+  ctx.fillText(fitCanvasText(ctx, data.pattern || data.blueprintName || "Blueprint", 720), 32, 67);
   ctx.fillStyle = "#635d57";
-  ctx.font = "16px Arial";
-  ctx.fillText(fitCanvasText(ctx, `${data.persona || "Selected persona"} | ${data.pattern || "Selected capability"}`, 860), 40, 188);
+  ctx.font = "20px Arial";
+  ctx.fillText(fitCanvasText(ctx, blueprintHeading(data).replace(/^NL2SQL - /, "").replace(/^RAG - /, ""), 760), 32, 94);
+  drawCanvasDownloadButton(ctx, width - 396, 23, 349, 72);
 
-  const stageY = 350;
-  const cardH = 92;
-  drawCanvasCard(ctx, 44, stageY, 190, cardH, userNode.label, userNode.detail, "user", doneBorder);
-  drawCanvasArrow(ctx, 240, stageY + cardH / 2, 295, stageY + cardH / 2, doneBorder);
-  drawCanvasCard(ctx, 300, stageY, 220, cardH, "AI Orchestrator", "Classifies intent and dispatches selected branches", "bot", doneBorder);
-  drawCanvasArrow(ctx, 528, stageY + cardH / 2, 570, stageY + cardH / 2, doneBorder);
-  drawCanvasSourceGroup(ctx, 575, 250, 285, 290, sources, doneBorder);
-  drawCanvasArrow(ctx, 868, stageY + cardH / 2, 915, stageY + cardH / 2, doneBorder);
-  drawCanvasWorkerGroup(ctx, 920, 230, 315, 330, workerNodes, doneBorder, isComplete);
-  drawCanvasArrow(ctx, 1243, stageY + cardH / 2, 1285, stageY + cardH / 2, doneBorder);
-  drawCanvasCard(ctx, 1290, stageY, 170, cardH, responseNode.label, responseNode.detail, "message", doneBorder, { compact: true });
+  const nodeY = 475;
+  const nodeH = 91;
+  drawStep3NodeCard(ctx, 32, nodeY, 248, nodeH, userNode.label || "User", userNode.detail || "Natural language business question", "user");
+  drawCanvasArrow(ctx, 280, nodeY + nodeH / 2, 313, nodeY + nodeH / 2, doneBorder);
+  drawStep3NodeCard(ctx, 313, nodeY - 10, 316, 111, "AI Orchestrator", "Classifies intent and dispatches selected branches", "bot");
+  drawCanvasArrow(ctx, 629, nodeY + nodeH / 2, 661, nodeY + nodeH / 2, doneBorder);
+  drawStep3SourceGroup(ctx, 661, 365, 416, 310, sources);
+  drawCanvasArrow(ctx, 1077, nodeY + nodeH / 2, 1108, nodeY + nodeH / 2, doneBorder);
+  drawStep3WorkerGroup(ctx, 1108, 314, 414, 414, workerNodes, isComplete);
+  drawCanvasArrow(ctx, 1522, nodeY + nodeH / 2, 1554, nodeY + nodeH / 2, doneBorder);
+  drawStep3NodeCard(ctx, 1555, nodeY - 10, 246, 111, responseNode.label || "Response", responseNode.detail || "Business answer and supporting metrics", "message", { compact: true });
+}
 
-  drawCanvasLegend(ctx, 54, 720, data, sources, workerNodes);
-  const url = canvas.toDataURL("image/png");
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  link.click();
+function drawCanvasDots(ctx, x, y, width, height) {
+  ctx.save();
+  ctx.fillStyle = "#d8d0c8";
+  for (let dotY = y; dotY <= y + height; dotY += 40) {
+    for (let dotX = x; dotX <= x + width; dotX += 40) {
+      ctx.beginPath();
+      ctx.arc(dotX, dotY, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawCanvasDownloadButton(ctx, x, y, width, height) {
+  ctx.save();
+  ctx.fillStyle = "#ffffff";
+  roundRect(ctx, x, y, width, height, 14);
+  ctx.fill();
+  ctx.strokeStyle = "#ded8d2";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.fillStyle = "#f9ebe7";
+  roundRect(ctx, x + 24, y + 18, 38, 38, 10);
+  ctx.fill();
+  ctx.strokeStyle = "#c74634";
+  ctx.lineWidth = 3;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(x + 43, y + 29);
+  ctx.lineTo(x + 43, y + 45);
+  ctx.moveTo(x + 35, y + 39);
+  ctx.lineTo(x + 43, y + 47);
+  ctx.lineTo(x + 51, y + 39);
+  ctx.moveTo(x + 33, y + 53);
+  ctx.lineTo(x + 53, y + 53);
+  ctx.stroke();
+  ctx.fillStyle = "#c74634";
+  ctx.font = "900 17px Arial";
+  ctx.fillText("DOWNLOAD BLUEPRINT", x + 78, y + 44);
+  ctx.restore();
+}
+
+function drawStep3NodeCard(ctx, x, y, width, height, title, detail, iconName, options = {}) {
+  ctx.save();
+  ctx.shadowColor = "rgba(47, 43, 39, 0.08)";
+  ctx.shadowBlur = 18;
+  ctx.shadowOffsetY = 12;
+  ctx.fillStyle = "#ffffff";
+  roundRect(ctx, x, y, width, height, 12);
+  ctx.fill();
+  ctx.shadowColor = "transparent";
+  ctx.strokeStyle = "#d2cbc4";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  const iconSize = 44;
+  const iconX = x + 20;
+  const iconY = y + Math.round((height - iconSize) / 2);
+  ctx.fillStyle = "#fae9e4";
+  roundRect(ctx, iconX, iconY, iconSize, iconSize, 11);
+  ctx.fill();
+  ctx.strokeStyle = "#c74634";
+  ctx.fillStyle = "#c74634";
+  drawCanvasNodeIconOnColor(ctx, iconName, iconX + iconSize / 2, iconY + iconSize / 2, "#c74634");
+  const textX = iconX + iconSize + 18;
+  const textWidth = width - (textX - x) - 18;
+  ctx.fillStyle = "#171412";
+  ctx.font = options.compact ? "900 22px Arial" : "900 22px Arial";
+  ctx.fillText(fitCanvasText(ctx, title, textWidth), textX, y + 37);
+  ctx.fillStyle = "#635d57";
+  ctx.font = "18px Arial";
+  drawCanvasWrappedText(ctx, detail, textX, y + 62, textWidth, 21, 3);
+  ctx.restore();
+}
+
+function drawStep3SourceGroup(ctx, x, y, width, height, sources) {
+  ctx.save();
+  ctx.fillStyle = "rgba(247, 255, 247, 0.82)";
+  roundRect(ctx, x, y, width, height, 14);
+  ctx.fill();
+  ctx.setLineDash([3, 4]);
+  ctx.strokeStyle = "#b7d6b4";
+  ctx.lineWidth = 1.4;
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = "#746d66";
+  ctx.font = "900 15px Arial";
+  ctx.fillText("EVIDENCE RETRIEVAL", x + 14, y + 27);
+  ctx.fillStyle = "#171412";
+  ctx.font = "900 22px Arial";
+  ctx.fillText("Selected knowledge sources", x + 14, y + 58);
+  let itemY = y + 86;
+  sources.slice(0, 4).forEach((source) => {
+    drawStep3SourceItem(ctx, x + 14, itemY, width - 28, 56, source);
+    itemY += 64;
+  });
+  if (!sources.length) {
+    ctx.fillStyle = "#635d57";
+    ctx.font = "18px Arial";
+    drawCanvasWrappedText(ctx, "Select one or more knowledge sources.", x + 24, y + 78, width - 48, 25, 3);
+  }
+  ctx.restore();
+}
+
+function drawStep3SourceItem(ctx, x, y, width, height, source) {
+  ctx.save();
+  ctx.fillStyle = "#ffffff";
+  roundRect(ctx, x, y, width, height, 10);
+  ctx.fill();
+  ctx.strokeStyle = "#a9caa5";
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+  drawCanvasSourceBrandBadge(ctx, x + 16, y + 12, 32, sourceIconKind(source));
+  ctx.fillStyle = "#171412";
+  ctx.font = "900 17px Arial";
+  ctx.fillText(fitCanvasText(ctx, source.KnowledgeSource || "Knowledge Source", width - 74), x + 58, y + 24);
+  ctx.fillStyle = "#635d57";
+  ctx.font = "14px Arial";
+  ctx.fillText(fitCanvasText(ctx, source.Channel || source.SourceType || "Knowledge source", width - 74), x + 58, y + 43);
+  ctx.restore();
+}
+
+function drawStep3WorkerGroup(ctx, x, y, width, height, nodes, isComplete) {
+  ctx.save();
+  ctx.shadowColor = "rgba(47, 43, 39, 0.10)";
+  ctx.shadowBlur = 22;
+  ctx.shadowOffsetY = 14;
+  ctx.fillStyle = "rgba(248, 255, 247, 0.94)";
+  roundRect(ctx, x, y, width, height, 14);
+  ctx.fill();
+  ctx.shadowColor = "transparent";
+  ctx.strokeStyle = "#2e7d32";
+  ctx.lineWidth = 1.8;
+  ctx.stroke();
+  ctx.fillStyle = "#c74634";
+  ctx.font = "900 16px Arial";
+  ctx.fillText("AGENT WORKER BRANCHES", x + 14, y + 26);
+  ctx.fillStyle = "#171412";
+  ctx.font = "900 23px Arial";
+  drawCanvasWrappedText(ctx, "Independent sub-agent execution", x + 14, y + 53, 250, 24, 2);
+  ctx.fillStyle = "#e1f2df";
+  roundRect(ctx, x + width - 121, y + 28, 97, 34, 17);
+  ctx.fill();
+  ctx.fillStyle = "#4b7149";
+  ctx.font = "900 18px Arial";
+  ctx.fillText(`${nodes.length || 0} agents`, x + width - 102, y + 50);
+  let itemY = y + 88;
+  nodes.forEach((node) => {
+    drawStep3WorkerItem(ctx, x + 14, itemY, width - 28, 66, node, isComplete ? "COMPLETE" : "READY");
+    itemY += 76;
+  });
+  ctx.restore();
+}
+
+function drawStep3WorkerItem(ctx, x, y, width, height, node, status) {
+  ctx.save();
+  ctx.fillStyle = "#ffffff";
+  roundRect(ctx, x, y, width, height, 11);
+  ctx.fill();
+  ctx.strokeStyle = "#ded8d2";
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+  ctx.fillStyle = "#fae9e4";
+  roundRect(ctx, x + 18, y + 13, 40, 40, 10);
+  ctx.fill();
+  drawCanvasNodeIconOnColor(ctx, agentIconName(node.label), x + 38, y + 33, "#c74634");
+  ctx.fillStyle = "#171412";
+  ctx.font = "900 18px Arial";
+  ctx.fillText(fitCanvasText(ctx, `${node.label || "Worker"} Agent`, width - 168), x + 72, y + 26);
+  ctx.fillStyle = "#635d57";
+  ctx.font = "14px Arial";
+  drawCanvasWrappedText(ctx, node.detail || "Agent branch", x + 72, y + 47, width - 176, 16, 2);
+  ctx.fillStyle = status === "COMPLETE" ? "#e1f2df" : "#eee9e5";
+  roundRect(ctx, x + width - 72, y + 22, 58, 24, 12);
+  ctx.fill();
+  ctx.fillStyle = status === "COMPLETE" ? "#2e7d32" : "#746d66";
+  ctx.font = "900 12px Arial";
+  ctx.fillText(status, x + width - 61, y + 38);
+  ctx.restore();
+}
+
+function drawCanvasNodeIconOnColor(ctx, iconName, cx, cy, color) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 2.2;
+  drawColoredNodeIcon(ctx, iconName, cx, cy, color);
+  ctx.restore();
+}
+
+function drawColoredNodeIcon(ctx, iconName, cx, cy, color) {
+  const drawCircle = (x, y, radius, fill = false) => {
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    fill ? ctx.fill() : ctx.stroke();
+  };
+  const drawRoundedRect = (x, y, width, height, radius) => {
+    roundRect(ctx, x, y, width, height, radius);
+    ctx.stroke();
+  };
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  switch (iconName) {
+    case "user":
+      drawCircle(cx, cy - 6, 4);
+      ctx.beginPath();
+      ctx.arc(cx, cy + 9, 8, Math.PI * 1.05, Math.PI * 1.95);
+      ctx.stroke();
+      break;
+    case "message":
+      drawRoundedRect(cx - 10, cy - 8, 20, 14, 3);
+      ctx.beginPath();
+      ctx.moveTo(cx - 4, cy + 6);
+      ctx.lineTo(cx - 9, cy + 11);
+      ctx.lineTo(cx - 8, cy + 5);
+      ctx.moveTo(cx - 5, cy - 2);
+      ctx.lineTo(cx + 6, cy - 2);
+      ctx.moveTo(cx - 5, cy + 3);
+      ctx.lineTo(cx + 3, cy + 3);
+      ctx.stroke();
+      break;
+    case "tag":
+      ctx.beginPath();
+      ctx.moveTo(cx + 9, cy);
+      ctx.lineTo(cx, cy + 9);
+      ctx.lineTo(cx - 10, cy - 1);
+      ctx.lineTo(cx - 10, cy - 9);
+      ctx.lineTo(cx - 2, cy - 9);
+      ctx.closePath();
+      ctx.stroke();
+      drawCircle(cx - 6, cy - 5, 1.4, true);
+      break;
+    case "database":
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - 8, 9, 4, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx - 9, cy - 8);
+      ctx.lineTo(cx - 9, cy + 7);
+      ctx.ellipse(cx, cy + 7, 9, 4, 0, 0, Math.PI);
+      ctx.moveTo(cx + 9, cy - 8);
+      ctx.lineTo(cx + 9, cy + 7);
+      ctx.stroke();
+      break;
+    case "code":
+      ctx.beginPath();
+      ctx.moveTo(cx - 4, cy - 8);
+      ctx.lineTo(cx - 10, cy);
+      ctx.lineTo(cx - 4, cy + 8);
+      ctx.moveTo(cx + 4, cy - 8);
+      ctx.lineTo(cx + 10, cy);
+      ctx.lineTo(cx + 4, cy + 8);
+      ctx.stroke();
+      break;
+    case "chart":
+      ctx.beginPath();
+      ctx.moveTo(cx - 10, cy + 9);
+      ctx.lineTo(cx + 10, cy + 9);
+      ctx.moveTo(cx - 8, cy + 9);
+      ctx.lineTo(cx - 8, cy + 2);
+      ctx.moveTo(cx, cy + 9);
+      ctx.lineTo(cx, cy - 7);
+      ctx.moveTo(cx + 8, cy + 9);
+      ctx.lineTo(cx + 8, cy - 1);
+      ctx.stroke();
+      break;
+    case "bot":
+    default:
+      drawRoundedRect(cx - 10, cy - 7, 20, 14, 5);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 7);
+      ctx.lineTo(cx, cy - 12);
+      ctx.stroke();
+      drawCircle(cx - 5, cy - 1, 1.5, true);
+      drawCircle(cx + 5, cy - 1, 1.5, true);
+      ctx.beginPath();
+      ctx.moveTo(cx - 4, cy + 4);
+      ctx.lineTo(cx + 4, cy + 4);
+      ctx.stroke();
+      break;
+  }
+  ctx.restore();
 }
 
 function blueprintHeading(data) {
@@ -3316,6 +3800,7 @@ function resetAfterWorkbook() {
   state.settingsOpen = false;
   state.downloadModalOpen = false;
   state.downloadPayload = null;
+  state.blueprintSnapshot = null;
   state.benefitsPayload = null;
   state.traceOpen = false;
   state.sourceRailOpen = false;
@@ -3328,6 +3813,7 @@ function resetAfterWorkbook() {
 }
 
 function handleContentUpload(files) {
+  resetBlueprintSnapshot();
   state.uploadedContent = Array.from(files || []).map((file) => ({
     path: file.webkitRelativePath || file.name,
     name: file.name,
@@ -3409,6 +3895,7 @@ document.addEventListener("click", (event) => {
     state.sourceRailOpen = false;
     state.workerName = "";
     state.workerNameError = false;
+    resetBlueprintSnapshot();
     ensureDefaults(true);
     render();
     focusWorkerNamePanel();
@@ -3417,6 +3904,7 @@ document.addEventListener("click", (event) => {
   if (target.dataset.nameSuggestion) {
     state.workerName = target.dataset.nameSuggestion;
     state.workerNameError = false;
+    resetBlueprintSnapshot();
     return render();
   }
   if (target.dataset.pattern) {
@@ -3426,6 +3914,7 @@ document.addEventListener("click", (event) => {
     state.run = emptyRun();
     state.traceOpen = false;
     state.sourceRailOpen = false;
+    resetBlueprintSnapshot();
     ensureDefaults();
     render();
     focusKnowledgePanel();
@@ -3444,6 +3933,7 @@ document.addEventListener("click", (event) => {
     resetRunTesting();
     state.run = emptyRun();
     state.traceOpen = false;
+    resetBlueprintSnapshot();
     return render();
   }
   if (target.dataset.sourceView) {
@@ -3494,6 +3984,7 @@ function resetExperience() {
   state.settingsOpen = false;
   state.downloadModalOpen = false;
   state.downloadPayload = null;
+  state.blueprintSnapshot = null;
   state.benefitsPayload = null;
   state.composerEngaged = false;
   state.customQuestion = "";
@@ -3522,6 +4013,7 @@ document.addEventListener("input", (event) => {
   }
   if (event.target.id === "workerName") {
     state.workerName = event.target.value;
+    resetBlueprintSnapshot();
     const nextButton = document.querySelector(".routeActions [data-route-next]");
     if (nextButton) nextButton.disabled = !state.workerName.trim();
     document.querySelector("[data-worker-name-panel]")?.classList.toggle("needsName", !state.workerName.trim());
