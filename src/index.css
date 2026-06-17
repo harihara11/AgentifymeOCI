@@ -3955,8 +3955,11 @@ textarea:disabled {
   color: #684510;
 }
 
-.qrFailed .qrFallback::after {
-  content: "Use the direct image download button.";
+.qrPending .qrFallback {
+  background:
+    linear-gradient(90deg, rgba(199, 70, 52, 0.12) 25%, transparent 25%, transparent 50%, rgba(199, 70, 52, 0.12) 50%, rgba(199, 70, 52, 0.12) 75%, transparent 75%) 0 0 / 32px 32px,
+    #fff;
+  color: var(--red-dark);
 }
 
 .qrDetails {
@@ -3971,6 +3974,27 @@ textarea:disabled {
 .qrDetails p {
   color: var(--muted);
   line-height: 1.4;
+}
+
+.qrObjectPath,
+.qrError {
+  padding: 9px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.qrObjectPath {
+  border: 1px solid #d8e5d2;
+  background: #f5fbf3;
+  color: #2e5f24;
+}
+
+.qrError {
+  border: 1px solid #f0d4a5;
+  background: #fff8e8;
+  color: #684510;
 }
 
 .tableWrap {
