@@ -3200,6 +3200,10 @@ textarea:disabled {
   align-items: stretch;
 }
 
+.agentRunWorkspace.traceIdle {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .agentChatSurface,
 .agentThinkingPanel {
   min-height: 0;
@@ -3223,6 +3227,16 @@ textarea:disabled {
   background: linear-gradient(180deg, #ffffff, #fbfaf8);
 }
 
+.agentChatSurface.noConversation {
+  grid-template-rows: auto auto auto;
+  grid-template-areas:
+    "body"
+    "composer"
+    "suggested";
+  align-content: center;
+  gap: 12px;
+}
+
 .agentChatBody {
   min-height: 0;
   overflow: auto;
@@ -3233,6 +3247,12 @@ textarea:disabled {
 
 .agentChatSurface.hasConversation .agentChatBody {
   align-items: start;
+}
+
+.agentChatSurface.noConversation .agentChatBody {
+  grid-area: body;
+  overflow: visible;
+  padding: 0 clamp(28px, 5vw, 78px);
 }
 
 .runEmptyState {
@@ -3416,6 +3436,11 @@ textarea:disabled {
   padding: 0 clamp(28px, 5vw, 78px) 10px;
 }
 
+.agentChatSurface.noConversation .runSuggested {
+  grid-area: suggested;
+  padding: 0 clamp(28px, 5vw, 78px);
+}
+
 .runSuggested .suggestedTitle {
   width: min(820px, 100%);
   margin: 0 auto 7px;
@@ -3507,6 +3532,11 @@ textarea:disabled {
 
 .runComposerWrap {
   padding: 0 clamp(28px, 5vw, 78px) 16px;
+}
+
+.agentChatSurface.noConversation .runComposerWrap {
+  grid-area: composer;
+  padding: 0 clamp(28px, 5vw, 78px);
 }
 
 .typingRecommendations {

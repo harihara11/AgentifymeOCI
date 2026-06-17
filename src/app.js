@@ -26,6 +26,7 @@ const state = {
   downloadPayload: null,
   benefitsPayload: null,
   runSuccessOpen: false,
+  composerEngaged: false,
   customQuestion: "",
   traceOpen: false,
   sourceRailOpen: false,
@@ -297,9 +298,16 @@ function testedQuestionIdsForThread(qnaId = state.activeQuestionThreadId || stat
   return questionThreadFor(qnaId).map((row) => row.QnAID);
 }
 
-function currentQuestionThreadComplete() {
-  const ids = testedQuestionIdsForThread();
-  return ids.length >= 3 && ids.every((id) => state.testedQuestionIds.includes(id));
+function completedRunInteractions() {
+  return state.runMessages.filter((message) => message.response && !message.running).length;
+}
+
+function hasCompletedRunInteraction() {
+  return completedRunInteractions() > 0 || Boolean(state.run.response && !state.run.running);
+}
+
+function hasRunExecutionActivity() {
+  return Boolean(state.runMessages.length || state.run.question || state.run.running);
 }
 
 function resetRunTesting() {
@@ -309,6 +317,7 @@ function resetRunTesting() {
   state.testedQuestionIds = [];
   state.runMessages = [];
   state.runSuccessOpen = false;
+  state.composerEngaged = false;
 }
 
 function resetSavedRunKey() {
@@ -464,7 +473,7 @@ function next() {
     }
     return go("blueprint");
   }
-  if (state.screen === "blueprint") return completeCurrentRun();
+  if (state.screen === "blueprint") return requestRunCompletion();
   if (state.screen === "leaderboard") {
     resetExperience();
     return render();
@@ -483,6 +492,7 @@ function previous() {
 function canMoveNext() {
   if (state.screen === "persona") return Boolean(state.personaId && state.workerName.trim());
   if (state.screen === "pattern") return canEnter("blueprint");
+  if (state.screen === "blueprint") return hasCompletedRunInteraction();
   return true;
 }
 
@@ -870,6 +880,7 @@ function renderBlueprintCanvasScreen() {
 function renderAgentRunScreen() {
   const workerName = state.workerName.trim() || "Digital Worker";
   const chatbotName = state.workerName.trim() ? `${workerName} Digital Co Worker` : "Digital Co Worker";
+  const hasTrace = hasRunExecutionActivity();
   return `
     <section class="page agentRunPage">
       <div class="runTopLine">
@@ -882,12 +893,12 @@ function renderAgentRunScreen() {
         </div>
         <div class="btnRow runTopActions">
           <button class="action secondary" data-download-qr>${uiIcon("download", "iconBox")}<span>Download Blueprint</span></button>
-          <button class="action primary" data-route-next>Complete &rarr;</button>
+          <button class="action primary" data-route-next ${hasCompletedRunInteraction() ? "" : "disabled"}>Complete &rarr;</button>
         </div>
       </div>
-      <div class="agentRunWorkspace">
+      <div class="agentRunWorkspace ${hasTrace ? "traceActive" : "traceIdle"}">
         ${renderAgentChatSurface(chatbotName)}
-        ${renderAgentThinkingPanel()}
+        ${hasTrace ? renderAgentThinkingPanel() : ""}
       </div>
     </section>
   `;
@@ -896,9 +907,10 @@ function renderAgentRunScreen() {
 function renderAgentChatSurface(chatbotName) {
   const qs = runSuggestedQuestions();
   const hasConversation = Boolean(state.runMessages.length || state.run.question);
+  const centerComposer = !hasConversation && !state.customQuestion.trim() && !state.composerEngaged;
   const hasFollowUps = Boolean(state.run.response && qs.some((q) => isFollowUpQuestionId(q.QnAID)));
   return `
-    <section class="agentChatSurface ${hasConversation ? "hasConversation" : ""}" aria-label="${esc(chatbotName)} chat">
+    <section class="agentChatSurface ${hasConversation ? "hasConversation" : ""} ${centerComposer ? "noConversation" : "composerEngaged"}" aria-label="${esc(chatbotName)} chat">
       <div class="agentChatBody">
         ${hasConversation ? renderRunConversation(chatbotName, hasFollowUps ? qs : []) : renderRunEmptyState(chatbotName)}
       </div>
@@ -945,7 +957,7 @@ function renderRunEmptyState(chatbotName) {
     <div class="runEmptyState">
       <span class="runHalo">${esc(shortCode(chatbotName))}</span>
       <h2>What should ${esc(chatbotName)} answer?</h2>
-      <p>Ask a workbook question or type your own prompt. The execution trace will show orchestration, evidence retrieval, sub-agent work, and final response grounding.</p>
+      <p>Ask a workbook question or type your own prompt to test the selected digital co-worker.</p>
     </div>
   `;
 }
@@ -1777,7 +1789,7 @@ function renderModal() {
 function renderRunSuccessModal() {
   const workerName = state.workerName.trim() || "Digital Co Worker";
   const patternName = patternById()?.PatternName || "selected capability";
-  const testedCount = testedQuestionIdsForThread().filter((id) => state.testedQuestionIds.includes(id)).length;
+  const completedCount = completedRunInteractions();
   return `
     <div class="modalBackdrop runSuccessBackdrop" data-modal-close>
       <section class="modal runSuccessModal" role="dialog" aria-modal="true" aria-label="Agent test successful">
@@ -1792,7 +1804,7 @@ function renderRunSuccessModal() {
         </div>
         <div class="runSuccessBody">
           <div class="runSuccessStats">
-            <span><b>${testedCount}/3</b><small>questions tested</small></span>
+            <span><b>${completedCount}</b><small>interactions completed</small></span>
             <span><b>${esc(patternName)}</b><small>capability validated</small></span>
           </div>
           <p>Continue will save this run to the leaderboard.</p>
@@ -2365,6 +2377,7 @@ function startRun(qnaId, customQuestion = "") {
   if (runTimer) window.clearInterval(runTimer);
   state.runSuccessOpen = false;
   state.customQuestion = "";
+  state.composerEngaged = false;
   if (qnaId) {
     const rootId = rootQuestionId(qnaId);
     if (!isFollowUpQuestionId(qnaId) && state.activeQuestionThreadId !== rootId) {
@@ -2403,9 +2416,6 @@ function startRun(qnaId, customQuestion = "") {
         message.turnId === state.run.turnId ? { ...message, ...state.run } : message,
       );
       if (qnaId) markQuestionTested(qnaId);
-      if (!state.run.isCustom && currentQuestionThreadComplete()) {
-        state.runSuccessOpen = true;
-      }
     }
     render();
     scrollRunChatToBottom();
@@ -2528,6 +2538,15 @@ function completeCurrentRun() {
     console.warn("Could not save the current run to the leaderboard.", error);
   }
   state.screen = "leaderboard";
+  render();
+}
+
+function requestRunCompletion() {
+  if (!hasCompletedRunInteraction()) {
+    render();
+    return;
+  }
+  state.runSuccessOpen = true;
   render();
 }
 
@@ -3180,6 +3199,7 @@ function resetExperience() {
   state.downloadModalOpen = false;
   state.downloadPayload = null;
   state.benefitsPayload = null;
+  state.composerEngaged = false;
   state.customQuestion = "";
   state.traceOpen = false;
   state.sourceRailOpen = false;
@@ -3221,8 +3241,20 @@ document.addEventListener("input", (event) => {
   }
   if (event.target.id === "customQuestion") {
     state.customQuestion = event.target.value;
+    if (state.screen === "blueprint" && state.customQuestion.trim()) {
+      state.composerEngaged = true;
+      document.querySelector(".agentChatSurface")?.classList.remove("noConversation");
+      document.querySelector(".agentChatSurface")?.classList.add("composerEngaged");
+    }
     updateTypingRecommendations();
   }
+});
+
+document.addEventListener("focusin", (event) => {
+  if (event.target.id !== "customQuestion" || state.screen !== "blueprint") return;
+  state.composerEngaged = true;
+  document.querySelector(".agentChatSurface")?.classList.remove("noConversation");
+  document.querySelector(".agentChatSurface")?.classList.add("composerEngaged");
 });
 
 document.addEventListener("keydown", (event) => {
@@ -3230,9 +3262,19 @@ document.addEventListener("keydown", (event) => {
     closeActiveModal();
     return;
   }
+  if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
   if (event.target.id === "customQuestion" && event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
     startRun("", state.customQuestion.trim());
+    return;
+  }
+  if (document.querySelector(".modalBackdrop")) return;
+  if (event.target.matches?.("textarea:not(#customQuestion), [contenteditable='true']")) return;
+  if (event.target.matches?.("button:not([data-route-next])")) return;
+  const nextButton = document.querySelector("[data-route-next]");
+  if (nextButton && !nextButton.disabled) {
+    event.preventDefault();
+    next();
   }
 });
 
