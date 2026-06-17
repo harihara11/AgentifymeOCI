@@ -715,6 +715,10 @@ function renderPersona() {
         <section class="workerNamePanel ${state.workerName.trim() ? "" : "needsName"}" data-worker-name-panel>
           <div class="field ${workerNameError ? "fieldInvalid" : ""}">
             <label class="label" for="workerName">Digital Worker Name</label>
+            <div class="recommendationLabel">AI Recommended Digital Worker Name:</div>
+            <div class="suggestionRow compactSuggestions recommendationCallout">
+              ${suggestions.map((name) => `<button class="nameSuggestion" data-name-suggestion="${esc(name)}">${esc(name)}</button>`).join("")}
+            </div>
             <input
               id="workerName"
               class="input"
@@ -727,10 +731,6 @@ function renderPersona() {
             <p id="workerNameMessage" class="fieldMessage" aria-live="polite">
               ${workerNameError ? "Please enter a digital worker name to continue." : ""}
             </p>
-          </div>
-          <div class="recommendationLabel">AI Recommended Digital Worker Name:</div>
-          <div class="suggestionRow compactSuggestions recommendationCallout">
-            ${suggestions.map((name) => `<button class="nameSuggestion" data-name-suggestion="${esc(name)}">${esc(name)}</button>`).join("")}
           </div>
         </section>
       ` : ""}
@@ -930,10 +930,7 @@ function renderAgentChatSurface(chatbotName) {
         </div>
         <div class="runComposer">
           <button class="composerIconButton" type="button" aria-label="Attach context">+</button>
-          <textarea id="customQuestion" class="runInput" placeholder="Ask ${esc(chatbotName)} anything..." rows="1">${esc(state.customQuestion)}</textarea>
-          <button class="sendButton runSendButton" data-run-custom aria-label="Run question">
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3.5 20.5 21 12 3.5 3.5 6.25 10.9 14 12l-7.75 1.1-2.75 7.4Z"></path></svg>
-          </button>
+          <textarea id="customQuestion" class="runInput" placeholder="Type to find suggested questions..." rows="1">${esc(state.customQuestion)}</textarea>
         </div>
       </div>
     </section>
@@ -959,7 +956,7 @@ function renderRunEmptyState(chatbotName) {
     <div class="runEmptyState">
       <span class="runHalo">${esc(shortCode(chatbotName))}</span>
       <h2>What should ${esc(chatbotName)} answer?</h2>
-      <p>Ask a workbook question or type your own prompt to test the selected digital co-worker.</p>
+      <p>Select a suggested workbook question, or type to find matching suggested questions.</p>
     </div>
   `;
 }
@@ -1015,19 +1012,35 @@ function renderRunConversationTurn(message, chatbotName) {
 function recommendedQuestionsForTyping() {
   const query = state.customQuestion.trim().toLowerCase();
   if (!query) return [];
-  const questions = questionsFor();
+  const questions = typingCandidateQuestions();
   const matches = questions
     .filter((q) => q.Question.toLowerCase().includes(query) || query.split(/\s+/).some((word) => word.length > 2 && q.Question.toLowerCase().includes(word)))
     .slice(0, 3);
   return matches.length ? matches : questions.slice(0, 3);
 }
 
+function isTypingFollowUpMode() {
+  if (!state.activeQuestionThreadId) return false;
+  return state.runMessages.some((message) =>
+    message.response && rootQuestionId(message.qnaId) === state.activeQuestionThreadId,
+  );
+}
+
+function typingCandidateQuestions() {
+  if (isTypingFollowUpMode()) {
+    return followUpQuestionsFor(state.activeQuestionThreadId)
+      .filter((row) => !state.testedQuestionIds.includes(row.QnAID));
+  }
+  return questionsFor();
+}
+
 function renderTypingRecommendations() {
   const matches = recommendedQuestionsForTyping();
   if (!matches.length) return "";
+  const title = isTypingFollowUpMode() ? "Recommended follow-up questions" : "Recommended questions";
   return `
     <div class="typingCard">
-      <strong>Recommended questions</strong>
+      <strong>${esc(title)}</strong>
       ${matches.map((q) => `<button class="typingSuggestion" type="button" data-run-question="${esc(q.QnAID)}">${esc(q.Question)}</button>`).join("")}
     </div>
   `;
@@ -1469,10 +1482,10 @@ function sourceVisualStatus(stage) {
 function renderSourceConstellation(sources, stage) {
   const sourceCount = Math.max(1, sources.length);
   return `
-    <div class="sourceConstellation ${flowStageClass(stage)}" style="--source-count: ${sourceCount}">
+    <div class="sourceConstellation ${sources.length ? "" : "needsSourceSelection"} ${flowStageClass(stage)}" style="--source-count: ${sourceCount}">
       <div class="branchGroupTitle">Evidence retrieval</div>
       <div class="sourceChipGrid">
-        ${sources.map((source) => renderSourceBranch(source, stage)).join("") || `<div class="empty miniEmpty">Select one or more knowledge sources.</div>`}
+        ${sources.map((source) => renderSourceBranch(source, stage)).join("") || `<div class="empty miniEmpty sourceSelectionCallout">Select one or more knowledge sources.</div>`}
       </div>
     </div>
   `;
@@ -1656,10 +1669,7 @@ function renderChatPane() {
         </div>
       </div>
       <div class="chatComposerBar">
-        <textarea id="customQuestion" class="chatInput" placeholder="Type your message..." rows="1">${esc(state.customQuestion)}</textarea>
-        <button class="sendButton" data-run-custom aria-label="Run custom question">
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3.5 20.5 21 12 3.5 3.5 6.25 10.9 14 12l-7.75 1.1-2.75 7.4Z"></path></svg>
-        </button>
+        <textarea id="customQuestion" class="chatInput" placeholder="Type to find suggested questions..." rows="1">${esc(state.customQuestion)}</textarea>
       </div>
     </aside>
   `;
@@ -2727,8 +2737,8 @@ function buildPdf(streamText) {
 
 function downloadPng(data, fileName) {
   const canvas = document.createElement("canvas");
-  canvas.width = 1500;
-  canvas.height = 940;
+  canvas.width = 1700;
+  canvas.height = 980;
   const ctx = canvas.getContext("2d");
   const nodes = data.nodes || [];
   const userNode = nodes.find((node) => node.id === "user") || nodes[0] || { label: "User", detail: "Persona question and task intent" };
@@ -2755,19 +2765,23 @@ function downloadPng(data, fileName) {
   ctx.font = "16px Arial";
   ctx.fillText(fitCanvasText(ctx, `${data.persona || "Selected persona"} | ${data.pattern || "Selected capability"}`, 860), 40, 188);
 
-  const stageY = 350;
-  const cardH = 92;
-  drawCanvasCard(ctx, 44, stageY, 190, cardH, userNode.label, userNode.detail, "user", doneBorder);
-  drawCanvasArrow(ctx, 240, stageY + cardH / 2, 295, stageY + cardH / 2, doneBorder);
-  drawCanvasCard(ctx, 300, stageY, 220, cardH, "AI Orchestrator", "Classifies intent and dispatches selected branches", "bot", doneBorder);
-  drawCanvasArrow(ctx, 528, stageY + cardH / 2, 570, stageY + cardH / 2, doneBorder);
-  drawCanvasSourceGroup(ctx, 575, 250, 285, 290, sources, doneBorder);
-  drawCanvasArrow(ctx, 868, stageY + cardH / 2, 915, stageY + cardH / 2, doneBorder);
-  drawCanvasWorkerGroup(ctx, 920, 230, 315, 330, workerNodes, doneBorder, isComplete);
-  drawCanvasArrow(ctx, 1243, stageY + cardH / 2, 1285, stageY + cardH / 2, doneBorder);
-  drawCanvasCard(ctx, 1290, stageY, 170, cardH, responseNode.label, responseNode.detail, "message", doneBorder, { compact: true });
+  const stageY = 370;
+  const cardH = 104;
+  const sourceGroupH = Math.max(174, 66 + Math.max(1, sources.length) * 54);
+  const workerGroupH = Math.max(250, 80 + Math.max(1, workerNodes.length) * 64);
+  const sourceY = stageY + cardH / 2 - sourceGroupH / 2;
+  const workerY = stageY + cardH / 2 - workerGroupH / 2;
+  drawCanvasCard(ctx, 48, stageY, 220, cardH, userNode.label, userNode.detail, "user", doneBorder);
+  drawCanvasArrow(ctx, 276, stageY + cardH / 2, 310, stageY + cardH / 2, doneBorder);
+  drawCanvasCard(ctx, 316, stageY, 250, cardH, "AI Orchestrator", "Classifies intent and dispatches selected branches", "bot", doneBorder);
+  drawCanvasArrow(ctx, 574, stageY + cardH / 2, 620, stageY + cardH / 2, doneBorder);
+  drawCanvasSourceGroup(ctx, 626, sourceY, 330, sourceGroupH, sources, doneBorder, data.pattern);
+  drawCanvasArrow(ctx, 964, stageY + cardH / 2, 1010, stageY + cardH / 2, doneBorder);
+  drawCanvasWorkerGroup(ctx, 1016, workerY, 390, workerGroupH, workerNodes, doneBorder, isComplete);
+  drawCanvasArrow(ctx, 1414, stageY + cardH / 2, 1460, stageY + cardH / 2, doneBorder);
+  drawCanvasCard(ctx, 1466, stageY, 190, cardH, responseNode.label, responseNode.detail, "message", doneBorder, { compact: true });
 
-  drawCanvasLegend(ctx, 54, 720, data, sources, workerNodes);
+  drawCanvasLegend(ctx, 54, 760, data, sources, workerNodes);
   const url = canvas.toDataURL("image/png");
   const link = document.createElement("a");
   link.href = url;
@@ -2816,8 +2830,8 @@ function drawCanvasCard(ctx, x, y, width, height, title, detail, iconName, borde
   ctx.restore();
 }
 
-function drawCanvasSourceGroup(ctx, x, y, width, height, sources, borderColor) {
-  drawCanvasGroupFrame(ctx, x, y, width, height, "Evidence Retrieval", borderColor, "#f8fff7");
+function drawCanvasSourceGroup(ctx, x, y, width, height, sources, borderColor, pattern = "") {
+  drawCanvasGroupFrame(ctx, x, y, width, height, canvasSourceGroupTitle(pattern), borderColor, "#f8fff7");
   if (!sources.length) {
     ctx.fillStyle = "#171412";
     ctx.font = "bold 18px Arial";
@@ -2831,11 +2845,18 @@ function drawCanvasSourceGroup(ctx, x, y, width, height, sources, borderColor) {
   });
 }
 
+function canvasSourceGroupTitle(pattern = "") {
+  const value = text(pattern).toLowerCase();
+  if (value.includes("nl2sql")) return "Schema & Data Context";
+  if (value.includes("document")) return "Document Inputs";
+  return "Evidence Retrieval";
+}
+
 function drawCanvasWorkerGroup(ctx, x, y, width, height, nodes, borderColor, isComplete) {
   drawCanvasGroupFrame(ctx, x, y, width, height, "Agent Worker Branches", borderColor, "#f8fff7");
   ctx.fillStyle = "#171412";
   ctx.font = "bold 15px Arial";
-  ctx.fillText("Independent sub-agent execution", x + 16, y + 42);
+  ctx.fillText(fitCanvasText(ctx, "Independent sub-agent execution", width - 116), x + 16, y + 42);
   ctx.fillStyle = "#2e7d32";
   roundRect(ctx, x + width - 82, y + 18, 58, 26, 13);
   ctx.fill();
@@ -2844,8 +2865,8 @@ function drawCanvasWorkerGroup(ctx, x, y, width, height, nodes, borderColor, isC
   ctx.fillText(`${nodes.length || 0} agents`, x + width - 73, y + 36);
   let itemY = y + 64;
   nodes.forEach((node) => {
-    drawCanvasMiniItem(ctx, x + 16, itemY, width - 32, 50, `${node.label} Agent`, node.detail, agentIconName(node.label), borderColor, isComplete ? "Complete" : "Ready");
-    itemY += 58;
+    drawCanvasMiniItem(ctx, x + 16, itemY, width - 32, 56, `${node.label} Agent`, node.detail, agentIconName(node.label), borderColor, isComplete ? "Complete" : "Ready");
+    itemY += 64;
   });
 }
 
@@ -2877,18 +2898,19 @@ function drawCanvasMiniItem(ctx, x, y, width, height, title, detail, iconName, b
   drawCanvasNodeIcon(ctx, iconName, x + 23, y + 23);
   ctx.fillStyle = "#171412";
   ctx.font = "bold 13px Arial";
-  const titleWidth = status ? width - 116 : width - 56;
+  const titleWidth = status ? width - 132 : width - 56;
+  const detailWidth = status ? width - 132 : width - 66;
   ctx.fillText(fitCanvasText(ctx, title, titleWidth), x + 46, y + 21);
   ctx.fillStyle = "#635d57";
   ctx.font = "10.5px Arial";
-  ctx.fillText(fitCanvasText(ctx, detail, width - 66), x + 46, y + 36);
+  ctx.fillText(fitCanvasText(ctx, detail, detailWidth), x + 46, y + 40);
   if (status) {
     ctx.fillStyle = status === "Complete" ? "#2e7d32" : "#e9e3de";
-    roundRect(ctx, x + width - 72, y + 15, 58, 20, 10);
+    roundRect(ctx, x + width - 74, y + 18, 60, 20, 10);
     ctx.fill();
     ctx.fillStyle = status === "Complete" ? "#ffffff" : "#635d57";
     ctx.font = "bold 9px Arial";
-    ctx.fillText(status.toUpperCase(), x + width - 64, y + 29);
+    ctx.fillText(status.toUpperCase(), x + width - 66, y + 32);
   }
   ctx.restore();
 }
@@ -3462,7 +3484,6 @@ document.addEventListener("click", (event) => {
     return render();
   }
   if (target.dataset.runQuestion) return startRun(target.dataset.runQuestion);
-  if (target.dataset.runCustom !== undefined) return startRun("", state.customQuestion.trim());
   if (target.dataset.runSuccessContinue !== undefined) return continueFromRunSuccess();
   if (target.dataset.addLeader !== undefined) return addLeaderboard();
   if (target.dataset.leaderPage !== undefined) return goLeaderboardPage(Number(target.dataset.leaderPage));
@@ -3561,7 +3582,8 @@ document.addEventListener("keydown", (event) => {
   if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
   if (event.target.id === "customQuestion" && event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
-    startRun("", state.customQuestion.trim());
+    const [firstMatch] = recommendedQuestionsForTyping();
+    if (firstMatch) startRun(firstMatch.QnAID);
     return;
   }
   if (document.querySelector(".modalBackdrop")) return;
