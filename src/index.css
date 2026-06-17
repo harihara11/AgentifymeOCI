@@ -739,6 +739,11 @@ button.primary {
   background: var(--oracle-red);
 }
 
+button.primary:disabled {
+  background: #b8b1aa;
+  color: #fff;
+}
+
 button.secondary {
   border: 1px solid var(--line);
   background: #fff;
@@ -833,6 +838,18 @@ textarea:disabled {
   background: #fffdfb;
 }
 
+.workerNamePanel.needsName {
+  border-color: rgba(199, 70, 52, 0.72);
+  background: #fff8f5;
+  box-shadow:
+    0 0 0 3px rgba(199, 70, 52, 0.12),
+    0 12px 28px rgba(199, 70, 52, 0.12);
+}
+
+.workerNamePanel.needsName .input {
+  border-color: rgba(199, 70, 52, 0.5);
+}
+
 .compactSuggestions {
   margin-top: 10px;
 }
@@ -856,6 +873,21 @@ textarea:disabled {
   font-size: 13px;
   font-weight: 750;
   cursor: pointer;
+}
+
+.recommendationCallout .nameSuggestion {
+  border-color: rgba(199, 70, 52, 0.34);
+  background: #fff7f4;
+  color: #3f332e;
+  box-shadow: 0 6px 14px rgba(199, 70, 52, 0.08);
+}
+
+.workerNamePanel.needsName .recommendationLabel {
+  color: var(--oracle-red);
+}
+
+.workerNamePanel.needsName .nameSuggestion {
+  border-color: rgba(199, 70, 52, 0.62);
 }
 
 .nameSuggestion:hover {
@@ -1108,6 +1140,17 @@ textarea:disabled {
   grid-template-rows: auto minmax(0, 1fr);
 }
 
+.patternKnowledgePanel.needsSelection {
+  border-color: rgba(199, 70, 52, 0.72);
+  box-shadow:
+    0 0 0 3px rgba(199, 70, 52, 0.12),
+    0 14px 34px rgba(199, 70, 52, 0.14);
+}
+
+.patternKnowledgePanel.needsSelection .patternPanelHead {
+  background: #fff7f4;
+}
+
 .patternPanelHead,
 .patternPreviewHead {
   display: flex;
@@ -1146,6 +1189,19 @@ textarea:disabled {
   color: var(--muted);
   font-size: 11px;
   line-height: 1.25;
+}
+
+.knowledgeInstruction {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.patternKnowledgePanel.needsSelection .knowledgeInstruction {
+  color: var(--oracle-red);
 }
 
 .patternPanelHead b {
@@ -3245,9 +3301,43 @@ textarea:disabled {
   width: min(900px, 100%);
   margin: 0 auto;
   display: grid;
-  gap: 18px;
+  gap: 22px;
   align-self: start;
   padding-top: 10px;
+}
+
+.runConversationTurn {
+  display: grid;
+  gap: 10px;
+}
+
+.runInlineFollowUps {
+  width: min(620px, 82%);
+  justify-self: end;
+  display: grid;
+  justify-items: end;
+  gap: 7px;
+}
+
+.runInlineFollowUpList {
+  display: grid;
+  gap: 7px;
+  justify-items: end;
+}
+
+.runInlineFollowUps .runQuestion {
+  max-width: 520px;
+  min-height: 0;
+  padding: 10px 12px;
+  border-color: rgba(46, 125, 50, 0.46);
+  border-radius: 16px 16px 6px 16px;
+  background: #f7fcf5;
+  box-shadow: 0 8px 18px rgba(46, 125, 50, 0.08);
+}
+
+.runInlineFollowUps .runQuestion:hover {
+  border-color: #2e7d32;
+  background: #eff8ed;
 }
 
 .runBubbleRow {
@@ -3366,6 +3456,10 @@ textarea:disabled {
   gap: 8px;
 }
 
+.runQuestionStrip.followUpStrip {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
 .runQuestion {
   min-height: 38px;
   padding: 8px 10px;
@@ -3386,6 +3480,32 @@ textarea:disabled {
 
 .runQuestion span {
   min-width: 0;
+}
+
+.runQuestionCopy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.runQuestionCopy small {
+  color: #2e7d32;
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.runQuestion.followUpQuestion {
+  border-color: rgba(46, 125, 50, 0.46);
+  background: #f8fcf6;
+  color: #2f6f33;
+}
+
+.runQuestion.followUpQuestion:hover {
+  border-color: #2e7d32;
+  background: #eff8ed;
 }
 
 .runQuestion.tested {
@@ -3505,7 +3625,8 @@ textarea:disabled {
 
 .agentThinkingPanel {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto auto;
+  align-content: start;
   gap: 6px;
   padding: 10px;
   background: linear-gradient(180deg, #fff, #fbfaf8);
@@ -3563,6 +3684,8 @@ textarea:disabled {
 .thinkingAgentList {
   overflow: hidden;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  align-items: stretch;
 }
 
 .thinkingStep,
@@ -3648,12 +3771,25 @@ textarea:disabled {
 }
 
 .thinkingAgent {
-  grid-template-columns: 24px minmax(0, 1fr);
-  padding: 6px;
+  min-height: 44px;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 6px;
+  padding: 5px 7px;
 }
 
 .thinkingAgent .agentStatus {
   display: none;
+}
+
+.thinkingAgent .agentAvatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+}
+
+.thinkingAgent .agentIcon svg {
+  width: 12px;
+  height: 12px;
 }
 
 .thinkingAgent.active {
@@ -3911,10 +4047,33 @@ tr:last-child td {
 }
 
 .runSuccessModal {
+  position: relative;
   width: min(620px, 100%);
   grid-template-rows: auto auto;
   text-align: center;
   border: 1px solid rgba(46, 125, 50, 0.22);
+}
+
+.runSuccessClose {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.88);
+  color: #514a44;
+  cursor: pointer;
+}
+
+.runSuccessClose:hover {
+  border-color: var(--oracle-red);
+  color: var(--oracle-red);
+  background: #fff7f4;
 }
 
 .runSuccessHero {
@@ -3976,7 +4135,7 @@ tr:last-child td {
 
 .runSuccessStats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 14px;
 }
@@ -4532,6 +4691,30 @@ tr:last-child td {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+}
+
+.leaderPagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.leaderPagination > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.leaderPagination b {
+  color: #3d3834;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .iconMiniButton {
