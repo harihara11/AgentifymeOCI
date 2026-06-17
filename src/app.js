@@ -7,6 +7,7 @@ let runTimer = null;
 const BLUEPRINT_SNAPSHOT_STORE_KEY = "ociAiFactoryBlueprintSnapshots";
 const LEGACY_PENDING_BLUEPRINT_KEY = "ociAiFactoryPendingBlueprintDownload";
 const MAX_BLUEPRINT_SNAPSHOTS = 40;
+const BLUEPRINT_STATIC_HASH_PREFIX = "#blueprint-snapshot=";
 
 const state = {
   screen: "register",
@@ -2551,11 +2552,63 @@ function snapshotBlueprintPayload(payload) {
     ...source,
     blueprintFingerprint: fingerprint,
     blueprintRefId,
-    blueprintUrl: source.blueprintPublicUrl || source.blueprintImageUrl || source.blueprintUrl || blueprintDownloadUrl(blueprintRefId),
     snapshotStoredAt: source.snapshotStoredAt || new Date().toISOString(),
   };
+  snapshot.blueprintUrl = source.blueprintPublicUrl || source.blueprintImageUrl || blueprintStaticSnapshotUrl(snapshot) || blueprintDownloadUrl(blueprintRefId);
   persistBlueprintSnapshot(snapshot);
   return snapshot;
+}
+
+function compactBlueprintSnapshot(payload = {}) {
+  return {
+    v: 1,
+    blueprintRefId: payload.blueprintRefId || "",
+    generatedAt: payload.generatedAt || new Date().toISOString(),
+    user: payload.user || "",
+    persona: payload.persona || "",
+    pattern: payload.pattern || "",
+    digitalWorkerName: payload.digitalWorkerName || "",
+    blueprintName: payload.blueprintName || "",
+    score: payload.score || 0,
+    latestRun: { response: payload.latestRun?.response || "" },
+    knowledgeSources: (payload.knowledgeSources || []).map((source) => ({
+      KnowledgeID: source.KnowledgeID || "",
+      KnowledgeSource: source.KnowledgeSource || "",
+      SourceType: source.SourceType || "",
+      Channel: source.Channel || "",
+    })),
+    nodes: (payload.nodes || []).map((node) => ({
+      id: node.id || "",
+      label: node.label || "",
+      detail: node.detail || "",
+    })),
+  };
+}
+
+function encodeBlueprintSnapshot(payload) {
+  try {
+    const json = JSON.stringify(compactBlueprintSnapshot(payload));
+    return btoa(unescape(encodeURIComponent(json))).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+  } catch (error) {
+    console.warn("Could not encode blueprint snapshot for static hosting.", error);
+    return "";
+  }
+}
+
+function decodeBlueprintSnapshot(value) {
+  try {
+    const base64 = value.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+    return JSON.parse(decodeURIComponent(escape(atob(base64))));
+  } catch (error) {
+    console.warn("Could not decode blueprint snapshot from URL.", error);
+    return null;
+  }
+}
+
+function blueprintStaticSnapshotUrl(payload) {
+  const encoded = encodeBlueprintSnapshot(payload);
+  if (!encoded) return "";
+  return `${window.location.href.split("#")[0]}${BLUEPRINT_STATIC_HASH_PREFIX}${encoded}`;
 }
 
 function generateBlueprintRefId(payload) {
@@ -2745,7 +2798,7 @@ function blueprintDownloadUrl(blueprintRefId = "") {
 }
 
 function blueprintQrTargetUrl(payload) {
-  return payload?.blueprintPublicUrl || payload?.blueprintImageUrl || payload?.blueprintUrl || blueprintDownloadUrl(payload?.blueprintRefId || "");
+  return payload?.blueprintPublicUrl || payload?.blueprintImageUrl || blueprintStaticSnapshotUrl(payload) || payload?.blueprintUrl || blueprintDownloadUrl(payload?.blueprintRefId || "");
 }
 
 function blueprintImageDownloadUrl(payload) {
@@ -2821,6 +2874,14 @@ async function download(type, payload = null) {
 }
 
 function downloadFromHash() {
+  const staticPayload = blueprintSnapshotFromHash();
+  if (staticPayload) {
+    window.setTimeout(() => {
+      download("png", staticPayload);
+      window.history.replaceState(null, document.title, window.location.href.split("#")[0]);
+    }, 350);
+    return;
+  }
   const blueprintRefId = blueprintRefFromHash();
   if (blueprintRefId === null) return;
   const payload = blueprintRefId ? readBlueprintSnapshot(blueprintRefId) : readPendingBlueprintDownload();
@@ -2834,6 +2895,12 @@ function blueprintRefFromHash() {
   const match = window.location.hash.match(/^#download-blueprint-png(?:=(.+))?$/);
   if (!match) return null;
   return match[1] ? decodeURIComponent(match[1]) : "";
+}
+
+function blueprintSnapshotFromHash() {
+  if (!window.location.hash.startsWith(BLUEPRINT_STATIC_HASH_PREFIX)) return null;
+  const encoded = window.location.hash.slice(BLUEPRINT_STATIC_HASH_PREFIX.length);
+  return decodeBlueprintSnapshot(encoded);
 }
 
 function saveBlob(fileName, type, content) {

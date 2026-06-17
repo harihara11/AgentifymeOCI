@@ -39,6 +39,20 @@ https://<your-service-domain>/AgentifyME_OCI_AI_Prototype_v3.html
 
 QR codes generated from that public URL will point to the same public service, so they can be opened from a phone. Snapshot storage is runtime-local by default; for long-lived production links, set `BLUEPRINT_STORE_DIR` to a persistent disk path or replace the server write with object storage.
 
+## GitHub Pages Deployment
+
+This branch also includes a GitHub Actions workflow at `.github/workflows/pages.yml`.
+
+In GitHub, open **Settings > Pages**, set **Build and deployment > Source** to **GitHub Actions**, then push branch `17june` or run the **Deploy GitHub Pages** workflow manually.
+
+The hosted app URL will be:
+
+```text
+https://harihara11.github.io/AgentifymeOCI/AgentifyME_OCI_AI_Prototype_v3.html
+```
+
+GitHub Pages cannot run the Python API. On Pages, QR codes use a compact URL-encoded blueprint snapshot instead, so phones can open the same blueprint from the public GitHub Pages URL without a backend.
+
 ## Regenerate Workbook Data
 
 Run this after updating the workbook:
