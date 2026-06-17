@@ -1048,6 +1048,11 @@ textarea:disabled {
   padding: 12px 20px 10px;
 }
 
+.patternPage.patternPageEmpty {
+  grid-template-rows: auto auto auto;
+  align-content: start;
+}
+
 .patternPage .pageHead {
   margin-bottom: 0;
 }
@@ -1084,38 +1089,6 @@ textarea:disabled {
 .patternPage .routeActions .action {
   min-height: 36px;
   padding: 8px 12px;
-}
-
-.patternEmptyPreview {
-  min-height: 0;
-  display: grid;
-  place-items: center;
-  border: 1px dashed var(--line-strong);
-  border-radius: 8px;
-  background:
-    radial-gradient(#e0d9d2 1px, transparent 1px),
-    linear-gradient(180deg, #fffdfa, #f7f4ef);
-  background-size: 22px 22px, 100% 100%;
-}
-
-.patternEmptyPreview div {
-  max-width: 460px;
-  text-align: center;
-}
-
-.patternEmptyPreview strong,
-.patternEmptyPreview span {
-  display: block;
-}
-
-.patternEmptyPreview strong {
-  font-size: 18px;
-}
-
-.patternEmptyPreview span {
-  margin-top: 6px;
-  color: var(--muted);
-  font-size: 13px;
 }
 
 .patternConfigurator {

@@ -750,7 +750,7 @@ function renderPersonaCard(persona) {
 
 function renderPattern() {
   return `
-    <section class="page journeyPanel patternPage">
+    <section class="page journeyPanel patternPage ${state.patternId ? "" : "patternPageEmpty"}">
       <div class="pageHead">
         <div>
           <div class="eyebrow">Agent capability</div>
@@ -760,7 +760,7 @@ function renderPattern() {
       <div class="grid three capabilityGrid">
         ${visiblePatterns().map((pattern) => renderPatternCard(pattern)).join("")}
       </div>
-      ${state.patternId ? renderPatternConfigurator() : renderPatternEmptyPreview()}
+      ${state.patternId ? renderPatternConfigurator() : ""}
       ${renderRouteActions("Run Agent", "&rarr;")}
     </section>
   `;
@@ -775,17 +775,6 @@ function renderPatternCard(pattern) {
       <h3>${esc(display.name)}</h3>
       <p>${esc(display.description)}</p>
     </button>
-  `;
-}
-
-function renderPatternEmptyPreview() {
-  return `
-    <section class="patternEmptyPreview">
-      <div>
-        <strong>Select a capability to preview the blueprint</strong>
-        <span>The Knowledge Base and blueprint map will appear here as soon as you choose an agent capability.</span>
-      </div>
-    </section>
   `;
 }
 
