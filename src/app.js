@@ -884,21 +884,23 @@ function renderAgentRunScreen() {
   return `
     <section class="page agentRunPage">
       <div class="runTopLine">
-        <button class="action secondary" data-route-prev>&larr; Back</button>
         <div class="runAgentTitle">
           <span class="chatHeaderIcon">${esc(shortCode(chatbotName))}</span>
           <div>
             <h1>${esc(chatbotName)}</h1>
           </div>
         </div>
-        <div class="btnRow runTopActions">
-          <button class="action secondary" data-download-qr>${uiIcon("download", "iconBox")}<span>Download Blueprint</span></button>
-          <button class="action primary" data-route-next ${hasCompletedRunInteraction() ? "" : "disabled"}>Complete &rarr;</button>
-        </div>
       </div>
       <div class="agentRunWorkspace ${hasTrace ? "traceActive" : "traceIdle"}">
         ${renderAgentChatSurface(chatbotName)}
         ${hasTrace ? renderAgentThinkingPanel() : ""}
+      </div>
+      <div class="routeActions agentRunActions">
+        <button class="action secondary" data-route-prev>&larr; Back</button>
+        <div class="btnRow">
+          <button class="action secondary" data-download-qr>${uiIcon("download", "iconBox")}<span>Download Blueprint</span></button>
+          <button class="action primary" data-route-next ${hasCompletedRunInteraction() ? "" : "disabled"}>Complete &rarr;</button>
+        </div>
       </div>
     </section>
   `;
@@ -1788,8 +1790,7 @@ function renderModal() {
 
 function renderRunSuccessModal() {
   const workerName = state.workerName.trim() || "Digital Co Worker";
-  const patternName = patternById()?.PatternName || "selected capability";
-  const completedCount = completedRunInteractions();
+  const benefits = benefitsForPayload(blueprintPayload());
   return `
     <div class="modalBackdrop runSuccessBackdrop" data-modal-close>
       <section class="modal runSuccessModal" role="dialog" aria-modal="true" aria-label="Agent test successful">
@@ -1803,10 +1804,14 @@ function renderRunSuccessModal() {
           <p class="runSuccessLead">Wow, you have successfully tested the Digital Co Worker - ${esc(workerName)}.</p>
         </div>
         <div class="runSuccessBody">
-          <div class="runSuccessStats">
-            <span><b>${completedCount}</b><small>interactions completed</small></span>
-            <span><b>${esc(patternName)}</b><small>capability validated</small></span>
-          </div>
+          <section class="runSuccessBenefits" aria-label="Digital co-worker benefits">
+            <div class="runSuccessBenefitHead">
+              <div class="eyebrow">Benefits</div>
+              <h3>What this Digital Co Worker helped automate</h3>
+              <p>${esc(benefits.summary)}</p>
+            </div>
+            ${renderBenefitDetails(benefits)}
+          </section>
           <p>Continue will save this run to the leaderboard.</p>
           <button class="action primary runSuccessContinue" data-run-success-continue>Continue &rarr;</button>
         </div>
@@ -1830,29 +1835,35 @@ function renderBenefitsModal() {
           <button class="action secondary" data-modal-close>${uiIcon("close", "iconBox")}<span>Close</span></button>
         </header>
         <div class="modalBody">
-          <div class="benefitContext">
-            <span>${esc(benefits.persona)}</span>
-            <span>${esc(benefits.pattern)}</span>
-          </div>
-          <div class="benefitCompare">
-            <section>
-              <h3>Manual steps</h3>
-              <ul>${benefits.manualSteps.map((step) => `<li>${esc(step)}</li>`).join("")}</ul>
-            </section>
-            <section>
-              <h3>Digital worker automation</h3>
-              <ul>${benefits.automatedSteps.map((step) => `<li>${esc(step)}</li>`).join("")}</ul>
-            </section>
-          </div>
-          <section class="benefitImpact">
-            <h3>What it helped automate</h3>
-            <div>
-              ${benefits.impact.map((item) => `<span>${esc(item)}</span>`).join("")}
-            </div>
-          </section>
+          ${renderBenefitDetails(benefits)}
         </div>
       </section>
     </div>
+  `;
+}
+
+function renderBenefitDetails(benefits) {
+  return `
+    <div class="benefitContext">
+      <span>${esc(benefits.persona)}</span>
+      <span>${esc(benefits.pattern)}</span>
+    </div>
+    <div class="benefitCompare">
+      <section>
+        <h3>Manual steps</h3>
+        <ul>${benefits.manualSteps.map((step) => `<li>${esc(step)}</li>`).join("")}</ul>
+      </section>
+      <section>
+        <h3>Digital worker automation</h3>
+        <ul>${benefits.automatedSteps.map((step) => `<li>${esc(step)}</li>`).join("")}</ul>
+      </section>
+    </div>
+    <section class="benefitImpact">
+      <h3>What it helped automate</h3>
+      <div>
+        ${benefits.impact.map((item) => `<span>${esc(item)}</span>`).join("")}
+      </div>
+    </section>
   `;
 }
 
@@ -1975,7 +1986,7 @@ function renderDownloadModal() {
             </div>
             <div class="qrDetails">
               <h3>${esc(payload.pattern || patternById()?.PatternName || "Selected capability")}</h3>
-              <p>${esc(payload.persona || personaById()?.PersonaName || "Selected persona")} - Score ${esc(payload.score || computeScore())}</p>
+              <p>${esc(payload.persona || personaById()?.PersonaName || "Selected persona")} blueprint for ${esc(payload.digitalWorkerName || state.workerName || "Digital Worker")}</p>
               <button class="action primary" data-download="png">${uiIcon("image", "iconBox")}<span>Download Image</span></button>
             </div>
           </div>
@@ -2716,9 +2727,17 @@ function buildPdf(streamText) {
 
 function downloadPng(data, fileName) {
   const canvas = document.createElement("canvas");
-  canvas.width = 1000;
-  canvas.height = 1320;
+  canvas.width = 1500;
+  canvas.height = 940;
   const ctx = canvas.getContext("2d");
+  const nodes = data.nodes || [];
+  const userNode = nodes.find((node) => node.id === "user") || nodes[0] || { label: "User", detail: "Persona question and task intent" };
+  const responseNode = nodes.find((node) => node.id === "response") || nodes[nodes.length - 1] || { label: "Response", detail: "Answer with trace and source evidence" };
+  const workerNodes = nodes.filter((node) => !["user", "source", "response"].includes(node.id)).slice(0, 4);
+  const sources = data.knowledgeSources || [];
+  const isComplete = Boolean(data.latestRun?.response);
+  const doneBorder = isComplete ? "#2e7d32" : "#c74634";
+
   ctx.fillStyle = "#f7f5f2";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "#c74634";
@@ -2726,54 +2745,331 @@ function downloadPng(data, fileName) {
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 28px Arial";
   ctx.fillText("AgentifyME OCI AI Factory Blueprint", 40, 46);
+
   ctx.fillStyle = "#171412";
-  ctx.font = "bold 26px Arial";
-  ctx.fillText(data.blueprintName, 40, 120);
-  ctx.font = "16px Arial";
-  ctx.fillText(`${data.persona} | ${data.pattern} | Score ${data.score}`, 40, 150);
-  let y = 210;
-  data.nodes.forEach((node, index) => {
-    ctx.fillStyle = "#ffffff";
-    roundRect(ctx, 250, y, 500, 76, 8);
-    ctx.fill();
-    ctx.strokeStyle = index <= (data.latestRun?.currentStep ?? -1) ? "#c74634" : "#cfc7bf";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.fillStyle = "#c74634";
-    roundRect(ctx, 270, y + 17, 42, 42, 8);
-    ctx.fill();
-    drawCanvasNodeIcon(ctx, flowNodeIconName(node), 291, y + 38);
-    ctx.fillStyle = "#171412";
-    ctx.font = "bold 17px Arial";
-    ctx.fillText(node.label, 330, y + 33);
-    ctx.fillStyle = "#635d57";
-    ctx.font = "13px Arial";
-    wrapCanvasText(ctx, node.detail, 330, y + 54, 380, 15);
-    if (index < data.nodes.length - 1) {
-      ctx.strokeStyle = "#c8c0b8";
-      ctx.beginPath();
-      ctx.moveTo(500, y + 76);
-      ctx.lineTo(500, y + 110);
-      ctx.stroke();
-    }
-    y += 112;
-  });
-  y += 20;
-  ctx.fillStyle = "#171412";
-  ctx.font = "bold 18px Arial";
-  ctx.fillText("Knowledge Sources", 40, y);
-  y += 28;
+  ctx.font = "bold 34px Arial";
+  ctx.fillText(fitCanvasText(ctx, `${data.digitalWorkerName || "Digital Worker"} Digital Co Worker`, 760), 40, 124);
+  ctx.font = "bold 22px Arial";
+  ctx.fillText(fitCanvasText(ctx, blueprintHeading(data), 860), 40, 160);
   ctx.fillStyle = "#635d57";
-  ctx.font = "14px Arial";
-  data.knowledgeSources.slice(0, 8).forEach((source) => {
-    ctx.fillText(`- ${source.KnowledgeSource}`, 52, y);
-    y += 22;
-  });
+  ctx.font = "16px Arial";
+  ctx.fillText(fitCanvasText(ctx, `${data.persona || "Selected persona"} | ${data.pattern || "Selected capability"}`, 860), 40, 188);
+
+  const stageY = 350;
+  const cardH = 92;
+  drawCanvasCard(ctx, 44, stageY, 190, cardH, userNode.label, userNode.detail, "user", doneBorder);
+  drawCanvasArrow(ctx, 240, stageY + cardH / 2, 295, stageY + cardH / 2, doneBorder);
+  drawCanvasCard(ctx, 300, stageY, 220, cardH, "AI Orchestrator", "Classifies intent and dispatches selected branches", "bot", doneBorder);
+  drawCanvasArrow(ctx, 528, stageY + cardH / 2, 570, stageY + cardH / 2, doneBorder);
+  drawCanvasSourceGroup(ctx, 575, 250, 285, 290, sources, doneBorder);
+  drawCanvasArrow(ctx, 868, stageY + cardH / 2, 915, stageY + cardH / 2, doneBorder);
+  drawCanvasWorkerGroup(ctx, 920, 230, 315, 330, workerNodes, doneBorder, isComplete);
+  drawCanvasArrow(ctx, 1243, stageY + cardH / 2, 1285, stageY + cardH / 2, doneBorder);
+  drawCanvasCard(ctx, 1290, stageY, 170, cardH, responseNode.label, responseNode.detail, "message", doneBorder, { compact: true });
+
+  drawCanvasLegend(ctx, 54, 720, data, sources, workerNodes);
   const url = canvas.toDataURL("image/png");
   const link = document.createElement("a");
   link.href = url;
   link.download = fileName;
   link.click();
+}
+
+function blueprintHeading(data) {
+  if (data.pattern === "RAG") return "RAG - Retrieval Augmented Generation";
+  if (data.pattern === "NL2SQL") return "NL2SQL - Natural Language Query on Knowledge Base";
+  if (data.pattern === "Document AI") return "Document AI - Multimodal Document Intelligence";
+  return data.blueprintName || data.pattern || "Selected capability";
+}
+
+function fitCanvasText(ctx, value, maxWidth) {
+  const safeValue = text(value);
+  if (ctx.measureText(safeValue).width <= maxWidth) return safeValue;
+  let clipped = safeValue;
+  while (clipped.length > 3 && ctx.measureText(`${clipped}...`).width > maxWidth) {
+    clipped = clipped.slice(0, -1);
+  }
+  return `${clipped.trim()}...`;
+}
+
+function drawCanvasCard(ctx, x, y, width, height, title, detail, iconName, borderColor, options = {}) {
+  ctx.save();
+  ctx.fillStyle = "#ffffff";
+  roundRect(ctx, x, y, width, height, 8);
+  ctx.fill();
+  ctx.strokeStyle = borderColor;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  const iconSize = options.compact ? 32 : 40;
+  ctx.fillStyle = "#c74634";
+  roundRect(ctx, x + 16, y + 22, iconSize, iconSize, 8);
+  ctx.fill();
+  drawCanvasNodeIcon(ctx, iconName, x + 16 + iconSize / 2, y + 22 + iconSize / 2);
+  const textX = x + 16 + iconSize + 16;
+  const textWidth = Math.max(24, width - (textX - x) - 16);
+  ctx.fillStyle = "#171412";
+  ctx.font = options.compact ? "bold 15px Arial" : "bold 17px Arial";
+  ctx.fillText(fitCanvasText(ctx, title, textWidth), textX, y + 38);
+  ctx.fillStyle = "#635d57";
+  ctx.font = options.compact ? "11px Arial" : "13px Arial";
+  drawCanvasWrappedText(ctx, detail, textX, y + 60, textWidth, 15, options.compact ? 2 : 3);
+  ctx.restore();
+}
+
+function drawCanvasSourceGroup(ctx, x, y, width, height, sources, borderColor) {
+  drawCanvasGroupFrame(ctx, x, y, width, height, "Evidence Retrieval", borderColor, "#f8fff7");
+  if (!sources.length) {
+    ctx.fillStyle = "#171412";
+    ctx.font = "bold 18px Arial";
+    drawCanvasWrappedText(ctx, "Select one or more knowledge sources.", x + 34, y + 108, width - 68, 24, 3);
+    return;
+  }
+  let itemY = y + 50;
+  sources.slice(0, 5).forEach((source) => {
+    drawCanvasSourceMiniItem(ctx, x + 18, itemY, width - 36, 46, source, borderColor);
+    itemY += 52;
+  });
+}
+
+function drawCanvasWorkerGroup(ctx, x, y, width, height, nodes, borderColor, isComplete) {
+  drawCanvasGroupFrame(ctx, x, y, width, height, "Agent Worker Branches", borderColor, "#f8fff7");
+  ctx.fillStyle = "#171412";
+  ctx.font = "bold 15px Arial";
+  ctx.fillText("Independent sub-agent execution", x + 16, y + 42);
+  ctx.fillStyle = "#2e7d32";
+  roundRect(ctx, x + width - 82, y + 18, 58, 26, 13);
+  ctx.fill();
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 12px Arial";
+  ctx.fillText(`${nodes.length || 0} agents`, x + width - 73, y + 36);
+  let itemY = y + 64;
+  nodes.forEach((node) => {
+    drawCanvasMiniItem(ctx, x + 16, itemY, width - 32, 50, `${node.label} Agent`, node.detail, agentIconName(node.label), borderColor, isComplete ? "Complete" : "Ready");
+    itemY += 58;
+  });
+}
+
+function drawCanvasGroupFrame(ctx, x, y, width, height, title, borderColor, fillColor) {
+  ctx.save();
+  ctx.fillStyle = fillColor;
+  roundRect(ctx, x, y, width, height, 10);
+  ctx.fill();
+  ctx.strokeStyle = borderColor;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = "#c74634";
+  ctx.font = "bold 13px Arial";
+  ctx.fillText(title.toUpperCase(), x + 16, y + 26);
+  ctx.restore();
+}
+
+function drawCanvasMiniItem(ctx, x, y, width, height, title, detail, iconName, borderColor, status = "") {
+  ctx.save();
+  ctx.fillStyle = "#ffffff";
+  roundRect(ctx, x, y, width, height, 8);
+  ctx.fill();
+  ctx.strokeStyle = borderColor;
+  ctx.lineWidth = 1.3;
+  ctx.stroke();
+  ctx.fillStyle = "#c74634";
+  roundRect(ctx, x + 9, y + 9, 28, 28, 7);
+  ctx.fill();
+  drawCanvasNodeIcon(ctx, iconName, x + 23, y + 23);
+  ctx.fillStyle = "#171412";
+  ctx.font = "bold 13px Arial";
+  const titleWidth = status ? width - 116 : width - 56;
+  ctx.fillText(fitCanvasText(ctx, title, titleWidth), x + 46, y + 21);
+  ctx.fillStyle = "#635d57";
+  ctx.font = "10.5px Arial";
+  ctx.fillText(fitCanvasText(ctx, detail, width - 66), x + 46, y + 36);
+  if (status) {
+    ctx.fillStyle = status === "Complete" ? "#2e7d32" : "#e9e3de";
+    roundRect(ctx, x + width - 72, y + 15, 58, 20, 10);
+    ctx.fill();
+    ctx.fillStyle = status === "Complete" ? "#ffffff" : "#635d57";
+    ctx.font = "bold 9px Arial";
+    ctx.fillText(status.toUpperCase(), x + width - 64, y + 29);
+  }
+  ctx.restore();
+}
+
+function drawCanvasSourceMiniItem(ctx, x, y, width, height, source, borderColor) {
+  ctx.save();
+  ctx.fillStyle = "#ffffff";
+  roundRect(ctx, x, y, width, height, 8);
+  ctx.fill();
+  ctx.strokeStyle = borderColor;
+  ctx.lineWidth = 1.3;
+  ctx.stroke();
+  drawCanvasSourceBrandBadge(ctx, x + 9, y + 8, 30, sourceIconKind(source));
+  ctx.fillStyle = "#171412";
+  ctx.font = "bold 13px Arial";
+  ctx.fillText(fitCanvasText(ctx, source.KnowledgeSource, width - 58), x + 47, y + 21);
+  ctx.fillStyle = "#635d57";
+  ctx.font = "10.5px Arial";
+  ctx.fillText(fitCanvasText(ctx, source.Channel || source.SourceType || "Knowledge source", width - 66), x + 47, y + 36);
+  ctx.restore();
+}
+
+function drawCanvasSourceBrandBadge(ctx, x, y, size, kind) {
+  const cx = x + size / 2;
+  const cy = y + size / 2;
+  ctx.save();
+  ctx.lineWidth = 1.6;
+  if (kind === "sharepoint") {
+    ctx.fillStyle = "#e8f7f7";
+    roundRect(ctx, x, y, size, size, 8);
+    ctx.fill();
+    ctx.fillStyle = "#36c5bd";
+    ctx.beginPath();
+    ctx.arc(cx + 5, cy - 5, 8, 0, Math.PI * 2);
+    ctx.arc(cx + 7, cy + 6, 7, 0, Math.PI * 2);
+    ctx.arc(cx - 4, cy + 2, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#078a92";
+    roundRect(ctx, x + 4, y + 6, 17, 18, 4);
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 15px Arial";
+    ctx.fillText("S", x + 8, y + 20);
+  } else if (kind === "outlook") {
+    ctx.fillStyle = "#e8f1ff";
+    roundRect(ctx, x, y, size, size, 8);
+    ctx.fill();
+    ctx.fillStyle = "#0f6cbd";
+    roundRect(ctx, x + 5, y + 7, 14, 17, 3);
+    ctx.fill();
+    ctx.fillStyle = "#2b88d8";
+    roundRect(ctx, x + 15, y + 9, 11, 13, 2);
+    ctx.fill();
+    ctx.strokeStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.moveTo(x + 16, y + 10);
+    ctx.lineTo(x + 21, y + 15);
+    ctx.lineTo(x + 26, y + 10);
+    ctx.stroke();
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 10px Arial";
+    ctx.fillText("O", x + 8, y + 20);
+  } else if (kind === "slack") {
+    ctx.fillStyle = "#ffffff";
+    roundRect(ctx, x, y, size, size, 8);
+    ctx.fill();
+    drawSlackBar(ctx, cx - 8, cy - 2, 14, 5, "#36c5f0", 0);
+    drawSlackBar(ctx, cx - 2, cy - 8, 5, 14, "#2eb67d", 0);
+    drawSlackBar(ctx, cx + 2, cy + 3, 14, 5, "#ecb22e", 0);
+    drawSlackBar(ctx, cx + 3, cy - 1, 5, 14, "#e01e5a", 0);
+    ctx.strokeStyle = "#e5ded8";
+    roundRect(ctx, x, y, size, size, 8);
+    ctx.stroke();
+  } else if (kind === "excel") {
+    ctx.fillStyle = "#eaf6ef";
+    roundRect(ctx, x, y, size, size, 8);
+    ctx.fill();
+    ctx.fillStyle = "#107c41";
+    roundRect(ctx, x + 5, y + 5, 20, 20, 4);
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 15px Arial";
+    ctx.fillText("X", x + 10, y + 21);
+  } else if (kind === "pdf") {
+    ctx.fillStyle = "#fff0ee";
+    roundRect(ctx, x, y, size, size, 8);
+    ctx.fill();
+    ctx.fillStyle = "#d93025";
+    roundRect(ctx, x + 6, y + 5, 18, 21, 3);
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 7px Arial";
+    ctx.fillText("PDF", x + 8, y + 19);
+  } else if (kind === "database") {
+    ctx.fillStyle = "#3b6ea8";
+    roundRect(ctx, x, y, size, size, 8);
+    ctx.fill();
+    drawCanvasNodeIcon(ctx, "database", cx, cy);
+  } else if (kind === "audio") {
+    ctx.fillStyle = "#b85c00";
+    roundRect(ctx, x, y, size, size, 8);
+    ctx.fill();
+    drawCanvasNodeIcon(ctx, "mic", cx, cy);
+  } else if (kind === "video") {
+    ctx.fillStyle = "#315bb8";
+    roundRect(ctx, x, y, size, size, 8);
+    ctx.fill();
+    drawCanvasNodeIcon(ctx, "video", cx, cy);
+  } else {
+    ctx.fillStyle = "#4472c4";
+    roundRect(ctx, x, y, size, size, 8);
+    ctx.fill();
+    drawCanvasNodeIcon(ctx, "fileText", cx, cy);
+  }
+  ctx.restore();
+}
+
+function drawSlackBar(ctx, x, y, width, height, color) {
+  ctx.fillStyle = color;
+  roundRect(ctx, x, y, width, height, height / 2);
+  ctx.fill();
+}
+
+function drawCanvasArrow(ctx, fromX, fromY, toX, toY, color) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(fromX, fromY);
+  ctx.lineTo(toX - 12, toY);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(toX, toY);
+  ctx.lineTo(toX - 14, toY - 9);
+  ctx.lineTo(toX - 14, toY + 9);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawCanvasLegend(ctx, x, y, data, sources, workerNodes) {
+  ctx.save();
+  ctx.fillStyle = "#171412";
+  ctx.font = "bold 18px Arial";
+  ctx.fillText("Selected Knowledge Sources", x, y);
+  ctx.font = "14px Arial";
+  ctx.fillStyle = "#635d57";
+  const sourceText = sources.length ? sources.map((source) => source.KnowledgeSource).join(", ") : "None selected";
+  drawCanvasWrappedText(ctx, sourceText, x, y + 26, 600, 20, 3);
+  ctx.fillStyle = "#171412";
+  ctx.font = "bold 18px Arial";
+  ctx.fillText("Agent Worker Branches", x + 720, y);
+  ctx.fillStyle = "#635d57";
+  ctx.font = "14px Arial";
+  const workerText = workerNodes.length ? workerNodes.map((node) => `${node.label} Agent`).join(", ") : "No worker agents mapped";
+  drawCanvasWrappedText(ctx, workerText, x + 720, y + 26, 620, 20, 3);
+  ctx.fillStyle = "#8a8178";
+  ctx.font = "12px Arial";
+  ctx.fillText(`Generated ${new Date(data.generatedAt || Date.now()).toLocaleString()}`, x, y + 120);
+  ctx.restore();
+}
+
+function drawCanvasWrappedText(ctx, value, x, y, maxWidth, lineHeight, maxLines = 3) {
+  const words = text(value).split(/\s+/).filter(Boolean);
+  let line = "";
+  let lines = 0;
+  for (const word of words) {
+    const testLine = line ? `${line} ${word}` : word;
+    if (ctx.measureText(testLine).width > maxWidth && line) {
+      ctx.fillText(lines === maxLines - 1 ? fitCanvasText(ctx, line, maxWidth) : line, x, y);
+      lines += 1;
+      if (lines >= maxLines) return;
+      line = word;
+      y += lineHeight;
+    } else {
+      line = testLine;
+    }
+  }
+  if (line && lines < maxLines) ctx.fillText(fitCanvasText(ctx, line, maxWidth), x, y);
 }
 
 function drawCanvasNodeIcon(ctx, iconName, cx, cy) {
