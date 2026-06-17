@@ -8,6 +8,7 @@ const BLUEPRINT_SNAPSHOT_STORE_KEY = "ociAiFactoryBlueprintSnapshots";
 const LEGACY_PENDING_BLUEPRINT_KEY = "ociAiFactoryPendingBlueprintDownload";
 const MAX_BLUEPRINT_SNAPSHOTS = 40;
 const BLUEPRINT_STATIC_HASH_PREFIX = "#blueprint-snapshot=";
+const BLUEPRINT_STATIC_IMAGE_HASH_PREFIX = "#blueprint-image=";
 
 const state = {
   screen: "register",
@@ -2611,6 +2612,12 @@ function blueprintStaticSnapshotUrl(payload) {
   return `${window.location.href.split("#")[0]}${BLUEPRINT_STATIC_HASH_PREFIX}${encoded}`;
 }
 
+function blueprintStaticImageUrl(payload) {
+  const encoded = encodeBlueprintSnapshot(payload);
+  if (!encoded) return "";
+  return `${window.location.href.split("#")[0]}${BLUEPRINT_STATIC_IMAGE_HASH_PREFIX}${encoded}`;
+}
+
 function generateBlueprintRefId(payload) {
   const base = slug(`${payload.digitalWorkerName || payload.blueprintName || payload.pattern || "blueprint"}`).slice(0, 42) || "blueprint";
   const suffix = Math.random().toString(36).slice(2, 8);
@@ -2798,7 +2805,7 @@ function blueprintDownloadUrl(blueprintRefId = "") {
 }
 
 function blueprintQrTargetUrl(payload) {
-  return payload?.blueprintPublicUrl || payload?.blueprintImageUrl || blueprintStaticSnapshotUrl(payload) || payload?.blueprintUrl || blueprintDownloadUrl(payload?.blueprintRefId || "");
+  return payload?.blueprintPublicUrl || payload?.blueprintImageUrl || blueprintStaticImageUrl(payload) || payload?.blueprintUrl || blueprintDownloadUrl(payload?.blueprintRefId || "");
 }
 
 function blueprintImageDownloadUrl(payload) {
@@ -2874,6 +2881,13 @@ async function download(type, payload = null) {
 }
 
 function downloadFromHash() {
+  const imagePayload = blueprintImageFromHash();
+  if (imagePayload) {
+    window.setTimeout(() => {
+      showBlueprintImagePage(imagePayload);
+    }, 150);
+    return;
+  }
   const staticPayload = blueprintSnapshotFromHash();
   if (staticPayload) {
     window.setTimeout(() => {
@@ -2901,6 +2915,28 @@ function blueprintSnapshotFromHash() {
   if (!window.location.hash.startsWith(BLUEPRINT_STATIC_HASH_PREFIX)) return null;
   const encoded = window.location.hash.slice(BLUEPRINT_STATIC_HASH_PREFIX.length);
   return decodeBlueprintSnapshot(encoded);
+}
+
+function blueprintImageFromHash() {
+  if (!window.location.hash.startsWith(BLUEPRINT_STATIC_IMAGE_HASH_PREFIX)) return null;
+  const encoded = window.location.hash.slice(BLUEPRINT_STATIC_IMAGE_HASH_PREFIX.length);
+  return decodeBlueprintSnapshot(encoded);
+}
+
+function showBlueprintImagePage(payload) {
+  const canvas = createStep3PreviewCanvas(payload);
+  const imageUrl = canvas.toDataURL("image/png");
+  const title = `${payload.pattern || payload.blueprintName || "Blueprint"} Blueprint`;
+  document.title = title;
+  document.body.innerHTML = `
+    <main style="margin:0;min-height:100vh;background:#f7f5f2;display:grid;place-items:center;padding:16px;box-sizing:border-box;">
+      <img
+        alt="${esc(title)}"
+        src="${imageUrl}"
+        style="display:block;width:min(100%, 1846px);height:auto;background:#fff;border:1px solid #ded8d2;box-shadow:0 18px 60px rgba(47,43,39,.12);"
+      />
+    </main>
+  `;
 }
 
 function saveBlob(fileName, type, content) {
