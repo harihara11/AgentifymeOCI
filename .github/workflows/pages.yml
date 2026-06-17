@@ -30,10 +30,18 @@ jobs:
         with:
           enablement: true
 
+      - name: Prepare static site
+        run: |
+          mkdir -p _site
+          cp AgentifyME_OCI_AI_Prototype_v3.html _site/index.html
+          cp AgentifyME_OCI_AI_Prototype_v3.html _site/AgentifyME_OCI_AI_Prototype_v3.html
+          cp -R data src KnowledgeSources _site/
+          touch _site/.nojekyll
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
 
       - name: Deploy to GitHub Pages
         id: deployment
