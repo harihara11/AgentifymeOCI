@@ -1,0 +1,5 @@
+{
+  "scripts": {
+    "oci-upload-api": "node server/index.js"
+  }
+}

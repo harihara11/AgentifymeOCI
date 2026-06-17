@@ -24,6 +24,11 @@ const state = {
   settingsOpen: false,
   downloadModalOpen: false,
   downloadPayload: null,
+  downloadStatus: "idle",
+  downloadHostedUrl: "",
+  downloadObjectName: "",
+  downloadError: "",
+  downloadUploadToken: "",
   benefitsPayload: null,
   runSuccessOpen: false,
   composerEngaged: false,
@@ -1971,7 +1976,10 @@ function benefitsForPayload(payload = {}) {
 
 function renderDownloadModal() {
   const payload = state.downloadPayload || blueprintPayload();
-  const downloadUrl = blueprintDownloadUrl();
+  const downloadUrl = state.downloadHostedUrl || blueprintDownloadUrl();
+  const isUploading = state.downloadStatus === "uploading";
+  const hasHostedDownload = state.downloadStatus === "ready" && state.downloadHostedUrl;
+  const hasUploadError = state.downloadStatus === "error";
   return `
     <div class="modalBackdrop" data-modal-close>
       <section class="modal qrModal" role="dialog" aria-modal="true" aria-label="Download blueprint">
@@ -1979,31 +1987,44 @@ function renderDownloadModal() {
           <div>
             <div class="eyebrow">Download Blueprint</div>
             <h2>${esc(payload.digitalWorkerName || "Blueprint")}</h2>
-            <p>Scan the QR code to open the blueprint image download, or download it directly from this screen.</p>
+            <p>${hasHostedDownload ? "Scan the QR code to open the OCI-hosted blueprint image, or download it directly from this screen." : "Preparing an OCI Object Storage link for this blueprint image."}</p>
           </div>
           <button class="action secondary" data-modal-close>${uiIcon("close", "iconBox")}<span>Close</span></button>
         </header>
         <div class="modalBody">
           <div class="qrLayout">
-            <div class="qrFrame">
-              <span class="qrFallback">Preparing QR code</span>
-              <img
-                src="${esc(qrImageUrl(downloadUrl))}"
-                alt="QR code for blueprint PNG download"
-                onload="this.closest('.qrFrame').classList.add('qrLoaded')"
-                onerror="this.closest('.qrFrame').classList.add('qrFailed')"
-              />
+            <div class="qrFrame ${isUploading ? "qrPending" : ""} ${hasUploadError ? "qrFailed" : ""}">
+              <span class="qrFallback">${esc(downloadStatusText())}</span>
+              ${
+                hasHostedDownload
+                  ? `<img
+                      src="${esc(qrImageUrl(downloadUrl))}"
+                      alt="QR code for blueprint PNG download"
+                      onload="this.closest('.qrFrame').classList.add('qrLoaded')"
+                      onerror="this.closest('.qrFrame').classList.add('qrFailed')"
+                    />`
+                  : ""
+              }
             </div>
             <div class="qrDetails">
               <h3>${esc(payload.pattern || patternById()?.PatternName || "Selected capability")}</h3>
               <p>${esc(payload.persona || personaById()?.PersonaName || "Selected persona")} blueprint for ${esc(payload.digitalWorkerName || state.workerName || "Digital Worker")}</p>
-              <button class="action primary" data-download="png">${uiIcon("image", "iconBox")}<span>Download Image</span></button>
+              ${state.downloadObjectName ? `<p class="qrObjectPath">${esc(state.downloadObjectName)}</p>` : ""}
+              ${state.downloadError ? `<p class="qrError">${esc(state.downloadError)}</p>` : ""}
+              <button class="action primary" data-download="png" ${isUploading ? "disabled" : ""}>${uiIcon("image", "iconBox")}<span>${hasHostedDownload ? "Open OCI Image" : "Download Local Image"}</span></button>
             </div>
           </div>
         </div>
       </section>
     </div>
   `;
+}
+
+function downloadStatusText() {
+  if (state.downloadStatus === "uploading") return "Uploading blueprint to OCI";
+  if (state.downloadStatus === "error") return "OCI upload failed";
+  if (state.downloadStatus === "ready") return "Preparing QR code";
+  return "Preparing blueprint";
 }
 
 function qrImageUrl(value) {
@@ -2587,6 +2608,16 @@ function readLeaderboard() {
   }
 }
 
+function resetDownloadState() {
+  state.downloadModalOpen = false;
+  state.downloadPayload = null;
+  state.downloadStatus = "idle";
+  state.downloadHostedUrl = "";
+  state.downloadObjectName = "";
+  state.downloadError = "";
+  state.downloadUploadToken = "";
+}
+
 function leaderboardCreatedAt(row) {
   const dateValue = Date.parse(row?.createdAt || row?.payload?.createdAt || row?.payload?.generatedAt || "");
   if (Number.isFinite(dateValue)) return dateValue;
@@ -2620,8 +2651,7 @@ function rowPayloadFromButton(button) {
 function openBenefitsModal(payload = null) {
   state.benefitsPayload = payload || blueprintPayload();
   state.runSuccessOpen = false;
-  state.downloadModalOpen = false;
-  state.downloadPayload = null;
+  resetDownloadState();
   state.modalSourceId = "";
   state.docViewerSourceId = "";
   state.settingsOpen = false;
@@ -2630,8 +2660,14 @@ function openBenefitsModal(payload = null) {
 
 function openDownloadModal(payload = null) {
   const data = payload || blueprintPayload();
+  const uploadToken = `${Date.now()}-${Math.random()}`;
   state.downloadPayload = data;
   state.downloadModalOpen = true;
+  state.downloadStatus = "uploading";
+  state.downloadHostedUrl = "";
+  state.downloadObjectName = "";
+  state.downloadError = "";
+  state.downloadUploadToken = uploadToken;
   state.benefitsPayload = null;
   state.runSuccessOpen = false;
   state.modalSourceId = "";
@@ -2639,6 +2675,7 @@ function openDownloadModal(payload = null) {
   state.settingsOpen = false;
   localStorage.setItem("ociAiFactoryPendingBlueprintDownload", JSON.stringify(data));
   render();
+  uploadBlueprintToOci(data, uploadToken);
 }
 
 function blueprintDownloadUrl() {
@@ -2665,6 +2702,10 @@ function download(type, payload = null) {
     return;
   }
   if (type === "png") {
+    if (!payload && state.downloadHostedUrl) {
+      window.open(state.downloadHostedUrl, "_blank", "noopener");
+      return;
+    }
     downloadPng(data, `${baseName}.png`);
   }
 }
@@ -2735,7 +2776,7 @@ function buildPdf(streamText) {
   return pdf;
 }
 
-function downloadPng(data, fileName) {
+function renderBlueprintCanvas(data) {
   const canvas = document.createElement("canvas");
   canvas.width = 1700;
   canvas.height = 980;
@@ -2782,11 +2823,84 @@ function downloadPng(data, fileName) {
   drawCanvasCard(ctx, 1466, stageY, 190, cardH, responseNode.label, responseNode.detail, "message", doneBorder, { compact: true });
 
   drawCanvasLegend(ctx, 54, 760, data, sources, workerNodes);
+  return canvas;
+}
+
+function downloadPng(data, fileName) {
+  const canvas = renderBlueprintCanvas(data);
   const url = canvas.toDataURL("image/png");
   const link = document.createElement("a");
   link.href = url;
   link.download = fileName;
   link.click();
+}
+
+function blueprintPngBlob(data) {
+  const canvas = renderBlueprintCanvas(data);
+  return new Promise((resolve, reject) => {
+    if (canvas.toBlob) {
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("Could not create blueprint PNG blob."));
+      }, "image/png");
+      return;
+    }
+    try {
+      resolve(dataUrlToBlob(canvas.toDataURL("image/png")));
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+function dataUrlToBlob(dataUrl) {
+  const [header, payload] = dataUrl.split(",");
+  const mime = /data:([^;]+)/.exec(header)?.[1] || "application/octet-stream";
+  const binary = atob(payload);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return new Blob([bytes], { type: mime });
+}
+
+async function uploadBlueprintToOci(data, uploadToken) {
+  try {
+    const blob = await blueprintPngBlob(data);
+    const baseName = slug(`${data.digitalWorkerName || "Blueprint"}-${data.pattern || "Pattern"}`);
+    const formData = new FormData();
+    formData.append("file", blob, `${baseName}.png`);
+    formData.append("fileName", `${baseName}.png`);
+    formData.append(
+      "metadata",
+      JSON.stringify({
+        ...data,
+        uploadedFrom: window.location.href.split("#")[0],
+      }),
+    );
+
+    const response = await fetch("http://127.0.0.1:3001/api/blueprints/upload", {
+      method: "POST",
+      body: formData,
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || `OCI upload failed with HTTP ${response.status}.`);
+    if (!result.downloadUrl) throw new Error("OCI upload did not return a download URL.");
+    if (state.downloadUploadToken !== uploadToken) return;
+
+    state.downloadStatus = "ready";
+    state.downloadHostedUrl = result.downloadUrl;
+    state.downloadObjectName = result.objectName || "";
+    state.downloadError = "";
+    render();
+  } catch (error) {
+    if (state.downloadUploadToken !== uploadToken) return;
+    state.downloadStatus = "error";
+    state.downloadHostedUrl = "";
+    state.downloadObjectName = "";
+    state.downloadError = `${error.message || "Could not upload to OCI."} Use the local image download button instead.`;
+    render();
+  }
 }
 
 function blueprintHeading(data) {
@@ -3336,8 +3450,7 @@ function resetAfterWorkbook() {
   state.modalSourceId = "";
   state.docViewerSourceId = "";
   state.settingsOpen = false;
-  state.downloadModalOpen = false;
-  state.downloadPayload = null;
+  resetDownloadState();
   state.benefitsPayload = null;
   state.traceOpen = false;
   state.sourceRailOpen = false;
@@ -3364,8 +3477,7 @@ function closeActiveModal() {
   state.modalSourceId = "";
   state.docViewerSourceId = "";
   state.settingsOpen = false;
-  state.downloadModalOpen = false;
-  state.downloadPayload = null;
+  resetDownloadState();
   state.benefitsPayload = null;
   state.runSuccessOpen = false;
   render();
@@ -3397,8 +3509,7 @@ document.addEventListener("click", (event) => {
     state.settingsOpen = true;
     state.modalSourceId = "";
     state.docViewerSourceId = "";
-    state.downloadModalOpen = false;
-    state.downloadPayload = null;
+    resetDownloadState();
     state.benefitsPayload = null;
     state.runSuccessOpen = false;
     return render();
@@ -3471,8 +3582,7 @@ document.addEventListener("click", (event) => {
   if (target.dataset.sourceView) {
     state.docViewerSourceId = target.dataset.sourceView;
     state.modalSourceId = "";
-    state.downloadModalOpen = false;
-    state.downloadPayload = null;
+    resetDownloadState();
     state.benefitsPayload = null;
     state.runSuccessOpen = false;
     state.settingsOpen = false;
@@ -3513,8 +3623,7 @@ function resetExperience() {
   state.modalSourceId = "";
   state.docViewerSourceId = "";
   state.settingsOpen = false;
-  state.downloadModalOpen = false;
-  state.downloadPayload = null;
+  resetDownloadState();
   state.benefitsPayload = null;
   state.composerEngaged = false;
   state.customQuestion = "";
