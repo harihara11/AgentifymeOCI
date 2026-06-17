@@ -13,38 +13,6 @@ The page loads:
 - `src/index.css`
 - `src/app.js`
 
-## OCI Blueprint QR Downloads
-
-The blueprint QR modal can upload the generated PNG to OCI Object Storage through a local API, then use the returned pre-authenticated request link in the QR code.
-
-Start the local API before using **Download Blueprint**:
-
-```bash
-npm run oci-upload-api
-```
-
-The API listens on `http://127.0.0.1:3001` and uses your local OCI SDK config, normally `~/.oci/config` with the `DEFAULT` profile. You can override the profile or config file:
-
-```bash
-OCI_CONFIG_PROFILE=YOUR_PROFILE npm run oci-upload-api
-OCI_CONFIG_FILE=/path/to/config OCI_CONFIG_PROFILE=YOUR_PROFILE npm run oci-upload-api
-```
-
-Default Object Storage target:
-
-- Region: `ap-hyderabad-1`
-- Namespace: `ax4qsxvnsmtm`
-- Bucket: `Arjeet`
-- Prefix: `agentifyme/`
-- PAR expiry: `7` days
-
-The API uploads:
-
-- `agentifyme/blueprints/<run-id>.png`
-- `agentifyme/metadata/<run-id>.json`
-
-The OCI identity in the selected config profile must be allowed to create/overwrite/read objects and manage pre-authenticated requests in the bucket compartment.
-
 ## Regenerate Workbook Data
 
 Run this after updating the workbook:
