@@ -136,19 +136,38 @@ function uploadWithOci(payload) {
 async function handleUpload(req, res) {
   try {
     const body = await readBody(req);
-    const { fields, files } = parseMultipart(body, req.headers["content-type"]);
-    const file = files.file;
-    if (!file?.data?.length) {
+    const contentType = req.headers["content-type"] || "";
+    const bodyText = body.toString("utf8");
+    let fileName = "";
+    let imageData = null;
+    let metadata = {};
+    let fileContentType = "image/png";
+
+    if (/application\/json|text\/plain/i.test(contentType) && bodyText.trim().startsWith("{")) {
+      const payload = JSON.parse(bodyText || "{}");
+      const imageBase64 = String(payload.pngBase64 || payload.imageBase64 || "").replace(/^data:image\/png;base64,/, "");
+      fileName = payload.fileName || payload.filename || payload.metadata?.digitalWorkerName || "blueprint.png";
+      imageData = imageBase64 ? Buffer.from(imageBase64, "base64") : null;
+      metadata = payload.metadata || {};
+    } else {
+      const { fields, files } = parseMultipart(body, contentType);
+      const file = files.file;
+      fileName = fields.fileName || file?.filename || "blueprint.png";
+      imageData = file?.data || null;
+      fileContentType = file?.contentType || "application/octet-stream";
+      metadata = fields.metadata ? JSON.parse(fields.metadata) : {};
+    }
+
+    if (!imageData?.length) {
       sendJson(res, 400, { error: "Missing blueprint PNG file." });
       return;
     }
-    if (file.contentType && file.contentType !== "image/png") {
+    if (fileContentType && fileContentType !== "image/png") {
       sendJson(res, 400, { error: "Blueprint file must be a PNG image." });
       return;
     }
 
-    const metadata = fields.metadata ? JSON.parse(fields.metadata) : {};
-    const baseName = safeSlug(fields.fileName || file.filename || metadata.digitalWorkerName || "blueprint");
+    const baseName = safeSlug(fileName || metadata.digitalWorkerName || "blueprint");
     const runId = `${new Date().toISOString().replace(/[:.]/g, "-")}-${crypto.randomBytes(4).toString("hex")}-${baseName}`;
     const prefix = CONFIG.prefix.replace(/^\/+|\/+$/g, "");
     const imageObjectName = `${prefix}/blueprints/${runId}.png`;
@@ -159,7 +178,7 @@ async function handleUpload(req, res) {
       imageObjectName,
       metadataObjectName,
       parName: `agentifyme-blueprint-${runId}`,
-      imageBase64: file.data.toString("base64"),
+      imageBase64: imageData.toString("base64"),
       metadata,
     });
 

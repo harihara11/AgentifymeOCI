@@ -13,7 +13,7 @@
     <script src="data/content_manifest.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script>
-      window.AGENTIFYME_BLUEPRINT_UPLOAD_ENDPOINT = "https://ictic-irving-ratably.ngrok-free.dev";
+      window.AGENTIFYME_BLUEPRINT_UPLOAD_ENDPOINT = "https://pumlik6y2lgrn72ohb6n77tdme.apigateway.ap-hyderabad-1.oci.customer-oci.com/agentifyme/api/blueprints/upload";
     </script>
     <script defer src="src/app.js"></script>
   </head>
@@ -21,3 +21,8 @@
     <div id="app" class="app"></div>
   </body>
 </html>
+
+
+<!-- curl -i -X POST "https://pumlik6y2lgrn72ohb6n77tdme.apigateway.ap-hyderabad-1.oci.customer-oci.com/agentifyme/api/blueprints/upload" \
+  -H "Content-Type: text/plain;charset=UTF-8" \
+  -d '{"fileName":"test.png","pngBase64":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=","metadata":{"test":true}}' -->

@@ -55,6 +55,8 @@ const stepLabels = {
   leaderboard: ["Complete", "Leaderboard + download"],
 };
 
+const DEFAULT_BLUEPRINT_UPLOAD_ENDPOINT = "http://127.0.0.1:3001/api/blueprints/upload";
+
 const personaPatternRules = {
   P01: {
     allowed: ["AP01", "AP02", "AP03"],
@@ -115,6 +117,15 @@ function esc(value) {
 
 function slug(value) {
   return text(value).replace(/[^A-Za-z0-9]+/g, "") || "Default";
+}
+
+function blueprintUploadEndpoint() {
+  const configured = text(window.AGENTIFYME_BLUEPRINT_UPLOAD_ENDPOINT).trim();
+  if (!configured) return DEFAULT_BLUEPRINT_UPLOAD_ENDPOINT;
+  const corrected = configured.replace(/^hhttps:\/\//i, "https://").replace(/\/+$/, "");
+  if (!/^https?:\/\//i.test(corrected)) return DEFAULT_BLUEPRINT_UPLOAD_ENDPOINT;
+  if (/\/api\/blueprints\/upload$/i.test(corrected)) return corrected;
+  return `${corrected}/api/blueprints/upload`;
 }
 
 function shortCode(value) {
@@ -2864,27 +2875,46 @@ function dataUrlToBlob(dataUrl) {
   return new Blob([bytes], { type: mime });
 }
 
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = text(reader.result);
+      resolve(dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl);
+    };
+    reader.onerror = () => reject(reader.error || new Error("Could not read blueprint PNG blob."));
+    reader.readAsDataURL(blob);
+  });
+}
+
 async function uploadBlueprintToOci(data, uploadToken) {
   try {
     const blob = await blueprintPngBlob(data);
     const baseName = slug(`${data.digitalWorkerName || "Blueprint"}-${data.pattern || "Pattern"}`);
-    const formData = new FormData();
-    formData.append("file", blob, `${baseName}.png`);
-    formData.append("fileName", `${baseName}.png`);
-    formData.append(
-      "metadata",
-      JSON.stringify({
-        ...data,
-        uploadedFrom: window.location.href.split("#")[0],
-      }),
-    );
-
-    const response = await fetch("http://127.0.0.1:3001/api/blueprints/upload", {
+    const endpoint = blueprintUploadEndpoint();
+    const fileName = `${baseName}.png`;
+    const metadata = {
+      ...data,
+      uploadedFrom: window.location.href.split("#")[0],
+    };
+    const response = await fetch(endpoint, {
       method: "POST",
-      body: formData,
+      headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      body: JSON.stringify({
+        fileName,
+        pngBase64: await blobToBase64(blob),
+        metadata,
+      }),
     });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || `OCI upload failed with HTTP ${response.status}.`);
+    const responseText = await response.text();
+    let result = {};
+    try {
+      result = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      const preview = responseText.replace(/\s+/g, " ").trim().slice(0, 140);
+      throw new Error(preview || `OCI upload returned a non-JSON response with HTTP ${response.status}.`);
+    }
+    if (!response.ok) throw new Error(result.error || result.message || `OCI upload failed with HTTP ${response.status}.`);
     if (!result.downloadUrl) throw new Error("OCI upload did not return a download URL.");
     if (state.downloadUploadToken !== uploadToken) return;
 
